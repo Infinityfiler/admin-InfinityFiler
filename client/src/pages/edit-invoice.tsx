@@ -478,17 +478,20 @@ export default function EditInvoice() {
                         const updated = [...items];
                         updated[index] = { ...updated[index], unit_price: newPrice };
                         if (item.service_id && partnerRates.length > 0) {
-                          const rate = partnerRates.find(r => r.service_id === item.service_id);
-                          if (rate && Number(rate.discount_value) > 0) {
-                            const service = services.find(s => s.id === item.service_id);
-                            const basePrice = service ? getServicePrice(service) : (item.original_price || newPrice);
-                            const { price: discountedPrice, original, label } = applyPartnerDiscount(basePrice, item.service_id);
-                            if (newPrice !== discountedPrice) {
+                          const service = services.find(s => s.id === item.service_id);
+                          if (service) {
+                            const catalogPrice = getServicePrice(service);
+                            if (newPrice < catalogPrice) {
+                              const diff = catalogPrice - newPrice;
+                              const pctDiscount = ((diff / catalogPrice) * 100);
+                              const label = pctDiscount === Math.round(pctDiscount)
+                                ? `${Math.round(pctDiscount)}% partner discount`
+                                : `$${diff.toFixed(2)} partner discount`;
+                              updated[index].original_price = catalogPrice;
+                              updated[index].partner_discount_label = label;
+                            } else {
                               updated[index].original_price = undefined;
                               updated[index].partner_discount_label = undefined;
-                            } else {
-                              updated[index].original_price = original;
-                              updated[index].partner_discount_label = label;
                             }
                           }
                         }

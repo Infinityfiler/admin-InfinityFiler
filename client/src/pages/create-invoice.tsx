@@ -634,11 +634,34 @@ export default function CreateInvoice() {
                     </div>
                     <div>
                       <Label className="text-xs">Unit Price ($)</Label>
-                      <Input type="number" min={0} step="0.01" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))} data-testid={`input-item-price-${index}`} />
+                      <Input type="number" min={0} step="0.01" value={item.unit_price} onChange={(e) => {
+                        const newPrice = Number(e.target.value);
+                        const updated = [...items];
+                        updated[index] = { ...updated[index], unit_price: newPrice };
+                        if (item.service_id && partnerRates.length > 0) {
+                          const service = services.find(s => s.id === item.service_id);
+                          if (service) {
+                            const catalogPrice = getServicePrice(service);
+                            if (newPrice < catalogPrice) {
+                              const diff = catalogPrice - newPrice;
+                              const pctDiscount = ((diff / catalogPrice) * 100);
+                              const label = pctDiscount === Math.round(pctDiscount)
+                                ? `${Math.round(pctDiscount)}% partner discount`
+                                : `$${diff.toFixed(2)} partner discount`;
+                              updated[index].original_price = catalogPrice;
+                              updated[index].partner_discount_label = label;
+                            } else {
+                              updated[index].original_price = undefined;
+                              updated[index].partner_discount_label = undefined;
+                            }
+                          }
+                        }
+                        setItems(updated);
+                      }} data-testid={`input-item-price-${index}`} />
                       {item.partner_discount_label && item.original_price !== undefined && (
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className="text-[10px] text-muted-foreground line-through">${item.original_price.toFixed(2)}</span>
-                          <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 border-green-200" data-testid={`badge-partner-discount-${index}`}>
+                          <Badge variant="secondary" className="text-[10px]" data-testid={`badge-partner-discount-${index}`}>
                             {item.partner_discount_label}
                           </Badge>
                         </div>
