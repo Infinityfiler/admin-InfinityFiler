@@ -57,6 +57,9 @@ export interface IStorage {
   getOrderChats(orderId: number): Promise<OrderChat[]>;
   getOrderChatById(chatId: number): Promise<OrderChat | null>;
   createOrderChat(data: InsertOrderChat): Promise<OrderChat>;
+  markChatsAsRead(orderId: number, readerType: "admin" | "customer"): Promise<void>;
+  getUnreadChatCounts(readerType: "admin" | "customer"): Promise<Record<number, number>>;
+  getUnreadChatCountsForCustomer(customerId: number): Promise<Record<number, number>>;
 
   getDocumentRequests(orderId: number): Promise<DocumentRequest[]>;
   createDocumentRequest(data: InsertDocumentRequest): Promise<DocumentRequest>;
@@ -632,6 +635,23 @@ export class SupabaseStorage implements IStorage {
       .from("order_chats")
       .select("order_id")
       .eq("sender_type", otherType)
+      .is("read_at", null);
+    if (error) throw error;
+    const counts: Record<number, number> = {};
+    if (data) {
+      for (const row of data) {
+        counts[row.order_id] = (counts[row.order_id] || 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  async getUnreadChatCountsForCustomer(customerId: number): Promise<Record<number, number>> {
+    const { data, error } = await supabase
+      .from("order_chats")
+      .select("order_id")
+      .eq("sender_type", "admin")
+      .eq("customer_id", customerId)
       .is("read_at", null);
     if (error) throw error;
     const counts: Record<number, number> = {};

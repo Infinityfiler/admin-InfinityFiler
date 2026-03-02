@@ -351,6 +351,19 @@ function OrdersTab({ orders, loading, token, onNavigateToInvoice, pendingOrderId
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [detailData, setDetailData] = useState<OrderDetailData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await portalFetch(`/api/portal/${token}/chats/unread-counts`);
+        if (res.ok) setUnreadCounts(await res.json());
+      } catch (_) {}
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 15000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   const fetchOrderDetail = async (orderId: number) => {
     setSelectedOrderId(orderId);
@@ -463,7 +476,15 @@ function OrdersTab({ orders, loading, token, onNavigateToInvoice, pendingOrderId
                   </p>
                   <p className="text-sm text-muted-foreground">{order.company_name}</p>
                 </div>
-                {getStatusBadge(order.status)}
+                <div className="flex items-center gap-2">
+                  {(unreadCounts[String(order.id)] || 0) > 0 && (
+                    <div className="flex items-center gap-1 bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse" data-testid={`badge-unread-chat-${order.id}`}>
+                      <MessageSquare className="h-3 w-3" />
+                      <span className="text-[10px] font-bold">{unreadCounts[String(order.id)]}</span>
+                    </div>
+                  )}
+                  {getStatusBadge(order.status)}
+                </div>
               </div>
               <Separator className="my-3" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">

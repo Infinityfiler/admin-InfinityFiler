@@ -1781,6 +1781,16 @@ export async function registerRoutes(
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 
+  app.get("/api/portal/:token/chats/unread-counts", async (req, res) => {
+    try {
+      const link = await storage.getPortalLinkByToken(req.params.token);
+      if (!link) return res.status(404).json({ message: "Link not found", code: "NOT_FOUND" });
+      if (link.is_revoked) return res.status(410).json({ message: "This link has been revoked", code: "REVOKED" });
+      const counts = await storage.getUnreadChatCountsForCustomer(link.customer_id);
+      res.json(counts);
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
   app.get("/api/portal/:token/orders", async (req, res) => {
     try {
       const link = await storage.getPortalLinkByToken(req.params.token);
