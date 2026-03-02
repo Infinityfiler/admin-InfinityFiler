@@ -25,6 +25,7 @@ type PartnerFormData = {
   type: string;
   notes: string;
   is_active: boolean;
+  hide_invoices: boolean;
 };
 
 const emptyForm: PartnerFormData = {
@@ -36,6 +37,7 @@ const emptyForm: PartnerFormData = {
   type: "individual",
   notes: "",
   is_active: true,
+  hide_invoices: false,
 };
 
 function PartnerForm({ form, setForm, onSubmit, submitLabel, isPending, isEditing = false }: {
@@ -118,7 +120,7 @@ function PartnerForm({ form, setForm, onSubmit, submitLabel, isPending, isEditin
           </Select>
         </div>
       </div>
-      <div>
+      <div className="space-y-2">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -128,6 +130,16 @@ function PartnerForm({ form, setForm, onSubmit, submitLabel, isPending, isEditin
             data-testid="input-partner-active"
           />
           <span className="text-sm">Active</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.hide_invoices}
+            onChange={(e) => setForm({ ...form, hide_invoices: e.target.checked })}
+            className="rounded"
+            data-testid="input-partner-hide-invoices"
+          />
+          <span className="text-sm">Hide Payments/Invoices from Customer Portal</span>
         </label>
       </div>
       <div>
@@ -284,6 +296,7 @@ export default function Partners() {
       type: partner.type,
       notes: partner.notes,
       is_active: partner.is_active,
+      hide_invoices: partner.hide_invoices ?? false,
     });
     setEditOpen(true);
   };
@@ -458,6 +471,11 @@ export default function Partners() {
                     <Copy className="h-3 w-3 ml-1" />
                   </Badge>
                   <Badge variant="secondary" className="text-xs capitalize">{partner.type}</Badge>
+                  {partner.hide_invoices && (
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 bg-amber-50" data-testid={`badge-hide-invoices-${partner.id}`}>
+                      Invoices Hidden
+                    </Badge>
+                  )}
                 </div>
 
                 {partner.email && <p className="text-xs text-muted-foreground truncate mb-1">{partner.email}</p>}

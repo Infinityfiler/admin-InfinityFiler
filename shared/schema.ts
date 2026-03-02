@@ -411,6 +411,7 @@ export interface ReferralPartner {
   total_referrals: number;
   notes: string;
   is_active: boolean;
+  hide_invoices: boolean;
   created_at: string;
 }
 
@@ -424,6 +425,7 @@ export const insertReferralPartnerSchema = z.object({
   type: z.string().optional().default("individual"),
   notes: z.string().optional().default(""),
   is_active: z.boolean().optional().default(true),
+  hide_invoices: z.boolean().optional().default(false),
 });
 
 export type InsertReferralPartner = z.infer<typeof insertReferralPartnerSchema>;

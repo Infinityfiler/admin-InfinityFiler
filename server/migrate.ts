@@ -395,6 +395,7 @@ export async function runMigrations() {
 
       ALTER TABLE referral_partners ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
       ALTER TABLE referral_partners ADD COLUMN IF NOT EXISTS total_referrals INTEGER DEFAULT 0;
+      ALTER TABLE referral_partners ADD COLUMN IF NOT EXISTS hide_invoices BOOLEAN DEFAULT false;
 
       ALTER TABLE customers ADD COLUMN IF NOT EXISTS referral_partner_id INTEGER REFERENCES referral_partners(id) ON DELETE SET NULL;
       ALTER TABLE customers ADD COLUMN IF NOT EXISTS referral_code TEXT DEFAULT '';

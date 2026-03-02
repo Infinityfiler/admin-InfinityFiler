@@ -30,6 +30,7 @@ interface PortalData {
   customer: Partial<Customer> | null;
   company: Partial<CompanySettings> | null;
   paymentMethods: PaymentMethod[];
+  hideInvoices?: boolean;
 }
 
 interface PortalInvoice extends Invoice {
@@ -154,7 +155,7 @@ export default function CustomerPortal() {
         .then(data => { setOrders(data); setOrdersLoading(false); })
         .catch(() => setOrdersLoading(false));
     }
-    if (activeTab === "invoices" && invoices.length === 0 && !invoicesLoading) {
+    if (activeTab === "invoices" && invoices.length === 0 && !invoicesLoading && !portalData?.hideInvoices) {
       setInvoicesLoading(true);
       portalFetch(`/api/portal/${token}/invoices`)
         .then(r => r.ok ? r.json() : [])
@@ -232,9 +233,11 @@ export default function CustomerPortal() {
   const companyName = portalData.company?.company_name || "Infinity Filer";
   const customerName = portalData.customer?.individual_name || "Customer";
 
+  const hideInvoices = portalData.hideInvoices === true;
+
   const tabs: { id: TabId; label: string; icon: typeof Package }[] = [
     { id: "orders", label: "Orders", icon: Package },
-    { id: "invoices", label: "Invoices", icon: FileText },
+    ...(!hideInvoices ? [{ id: "invoices" as TabId, label: "Invoices", icon: FileText }] : []),
     { id: "profile", label: "My Profile", icon: User },
   ];
 
@@ -281,13 +284,14 @@ export default function CustomerPortal() {
             token={token}
             pendingOrderId={pendingOrderId}
             clearPendingOrderId={() => setPendingOrderId(null)}
-            onNavigateToInvoice={(invoiceId) => {
+            hideInvoices={hideInvoices}
+            onNavigateToInvoice={hideInvoices ? undefined : (invoiceId) => {
               setActiveTab("invoices");
               setPendingInvoiceId(invoiceId);
             }}
           />
         )}
-        {activeTab === "invoices" && (
+        {!hideInvoices && activeTab === "invoices" && (
           <InvoicesTab
             invoices={invoices}
             loading={invoicesLoading}
@@ -346,7 +350,7 @@ interface OrderDetailData {
   activityLogs: OrderActivityLog[];
 }
 
-function OrdersTab({ orders, loading, token, onNavigateToInvoice, pendingOrderId, clearPendingOrderId }: { orders: Order[]; loading: boolean; token: string; onNavigateToInvoice?: (invoiceId: number) => void; pendingOrderId?: number | null; clearPendingOrderId?: () => void }) {
+function OrdersTab({ orders, loading, token, onNavigateToInvoice, pendingOrderId, clearPendingOrderId, hideInvoices = false }: { orders: Order[]; loading: boolean; token: string; onNavigateToInvoice?: (invoiceId: number) => void; pendingOrderId?: number | null; clearPendingOrderId?: () => void; hideInvoices?: boolean }) {
   const { toast } = useToast();
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [detailData, setDetailData] = useState<OrderDetailData | null>(null);
@@ -415,6 +419,7 @@ function OrdersTab({ orders, loading, token, onNavigateToInvoice, pendingOrderId
           onBack={handleBack}
           onRefetch={() => fetchOrderDetail(selectedOrderId)}
           onNavigateToInvoice={onNavigateToInvoice}
+          hideInvoices={hideInvoices}
         />
       );
     }
@@ -492,7 +497,7 @@ function OrdersTab({ orders, loading, token, onNavigateToInvoice, pendingOrderId
                   <span className="text-muted-foreground">Services: </span>
                   <span className="text-foreground">{order.service_type?.replace(/\|/g, ", ") || "-"}</span>
                 </div>
-                {order.invoice_number && (
+                {!hideInvoices && order.invoice_number && (
                   <div>
                     <span className="text-muted-foreground">Invoice: </span>
                     <span className="text-foreground">{order.invoice_number}</span>
@@ -530,12 +535,14 @@ function OrderDetailView({
   onBack,
   onRefetch,
   onNavigateToInvoice,
+  hideInvoices = false,
 }: {
   data: OrderDetailData;
   token: string;
   onBack: () => void;
   onRefetch: () => void;
   onNavigateToInvoice?: (invoiceId: number) => void;
+  hideInvoices?: boolean;
 }) {
   const { toast } = useToast();
   const { order, invoice, invoiceItems, documents, activityLogs } = data;
@@ -660,7 +667,7 @@ function OrderDetailView({
                 {new Date(order.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
               </span>
             </div>
-            {order.invoice_number && invoice && (
+            {!hideInvoices && order.invoice_number && invoice && (
               <div>
                 <span className="text-muted-foreground">Invoice: </span>
                 {onNavigateToInvoice && invoice.id ? (

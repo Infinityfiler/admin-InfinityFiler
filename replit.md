@@ -124,7 +124,7 @@ Required secrets (set in Replit Secrets):
 - Compliance tracking (annual reports, federal tax deadlines)
 - SMTP email sending, reminders, multi-payment methods
 - Dropbox document storage
-- Referral Partners with per-service discount rates
+- Referral Partners with per-service discount rates and per-partner `hide_invoices` toggle (hides Invoices tab, payment history, invoice references, and payment proof from customer portal; enforced on backend too)
 - Customer Portal Links (one link per customer, auto-generated on invoice creation)
   - Admin: Generate/revoke/reactivate links, view activity logs, share via WhatsApp/Email
   - Customer: View orders/invoices (click for full detail), edit profile (3 tabs: Orders, Invoices, My Profile — Documents tab removed, documents managed within orders)

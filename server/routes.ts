@@ -1765,6 +1765,12 @@ export async function registerRoutes(
       const settings = await storage.getCompanySettings();
       const paymentMethods = await storage.getEnabledPaymentMethods();
 
+      let hideInvoices = false;
+      if (customer?.referral_partner_id) {
+        const partner = await storage.getReferralPartner(customer.referral_partner_id);
+        if (partner?.hide_invoices) hideInvoices = true;
+      }
+
       res.json({
         link: { id: link.id, token: link.token, customer_id: link.customer_id },
         customer: customer ? {
@@ -1777,6 +1783,7 @@ export async function registerRoutes(
           whatsapp: settings.whatsapp, support_email: settings.support_email, logo_url: settings.logo_url,
         } : null,
         paymentMethods,
+        hideInvoices,
       });
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
@@ -1816,6 +1823,12 @@ export async function registerRoutes(
       if (!link) return res.status(404).json({ message: "Link not found", code: "NOT_FOUND" });
       if (link.is_revoked) return res.status(410).json({ message: "This link has been revoked", code: "REVOKED" });
 
+      const customer = await storage.getCustomer(link.customer_id);
+      if (customer?.referral_partner_id) {
+        const partner = await storage.getReferralPartner(customer.referral_partner_id);
+        if (partner?.hide_invoices) return res.json([]);
+      }
+
       await storage.logLinkActivity({
         link_id: link.id, customer_id: link.customer_id, action: "page_view",
         details: { page: "invoices" },
@@ -1851,8 +1864,15 @@ export async function registerRoutes(
         user_agent: req.headers["user-agent"] || "",
       });
 
-      const invoice = order.invoice_id ? await storage.getInvoice(order.invoice_id) : null;
-      const invoiceItems = invoice ? await storage.getInvoiceItems(invoice.id) : [];
+      let shouldHideInvoices = false;
+      const orderCustomer = await storage.getCustomer(link.customer_id);
+      if (orderCustomer?.referral_partner_id) {
+        const rp = await storage.getReferralPartner(orderCustomer.referral_partner_id);
+        if (rp?.hide_invoices) shouldHideInvoices = true;
+      }
+
+      const invoice = (!shouldHideInvoices && order.invoice_id) ? await storage.getInvoice(order.invoice_id) : null;
+      const invoiceItems = (!shouldHideInvoices && invoice) ? await storage.getInvoiceItems(invoice.id) : [];
       const documents = await storage.getOrderDocuments(order.id);
       const activityLogs = await storage.getOrderActivityLogs(order.id);
 
@@ -1865,6 +1885,12 @@ export async function registerRoutes(
       const link = await storage.getPortalLinkByToken(req.params.token);
       if (!link) return res.status(404).json({ message: "Link not found", code: "NOT_FOUND" });
       if (link.is_revoked) return res.status(410).json({ message: "This link has been revoked", code: "REVOKED" });
+
+      const cust = await storage.getCustomer(link.customer_id);
+      if (cust?.referral_partner_id) {
+        const p = await storage.getReferralPartner(cust.referral_partner_id);
+        if (p?.hide_invoices) return res.status(403).json({ message: "Invoice access is disabled" });
+      }
 
       const invoice = await storage.getInvoice(Number(req.params.invoiceId));
       if (!invoice || invoice.customer_id !== link.customer_id) {
@@ -2341,6 +2367,12 @@ export async function registerRoutes(
       const link = await storage.getPortalLinkByToken(req.params.token);
       if (!link) return res.status(404).json({ message: "Link not found", code: "NOT_FOUND" });
       if (link.is_revoked) return res.status(410).json({ message: "This link has been revoked", code: "REVOKED" });
+
+      const proofCustomer = await storage.getCustomer(link.customer_id);
+      if (proofCustomer?.referral_partner_id) {
+        const pp = await storage.getReferralPartner(proofCustomer.referral_partner_id);
+        if (pp?.hide_invoices) return res.status(403).json({ message: "Invoice access is disabled" });
+      }
 
       const invoice = await storage.getInvoice(Number(req.params.invoiceId));
       if (!invoice || invoice.customer_id !== link.customer_id) {
