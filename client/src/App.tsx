@@ -45,6 +45,7 @@ function AdminFloatingChat() {
       fetchUrl={`/api/orders/${id}/chats`}
       postUrl={`/api/orders/${id}/chats`}
       downloadUrlPrefix={`/api/orders/${id}/chats`}
+      markAsReadUrl={`/api/orders/${id}/chats/read`}
       authHeaders={getAuthHeaders()}
     />
   );

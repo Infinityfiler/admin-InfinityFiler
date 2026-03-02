@@ -945,6 +945,7 @@ function OrderDetailView({
         fetchUrl={`/api/portal/${token}/orders/${order.id}/chats`}
         postUrl={`/api/portal/${token}/orders/${order.id}/chats`}
         downloadUrlPrefix={`/api/portal/${token}/chats`}
+        markAsReadUrl={`/api/portal/${token}/orders/${order.id}/chats/read`}
       />
     </div>
   );

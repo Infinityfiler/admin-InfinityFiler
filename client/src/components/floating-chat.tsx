@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  MessageSquare, X, Send, Paperclip, Loader2, Download, Eye
+  MessageSquare, X, Send, Paperclip, Loader2, Download, Eye, Check, CheckCheck
 } from "lucide-react";
 
 interface ChatMessage {
@@ -15,6 +15,7 @@ interface ChatMessage {
   message: string | null;
   file_name: string | null;
   file_path: string | null;
+  read_at: string | null;
   created_at: string;
 }
 
@@ -25,6 +26,7 @@ interface FloatingChatProps {
   fetchUrl: string;
   postUrl: string;
   downloadUrlPrefix: string;
+  markAsReadUrl: string;
   authHeaders?: Record<string, string>;
 }
 
@@ -48,6 +50,7 @@ export default function FloatingChat({
   fetchUrl,
   postUrl,
   downloadUrlPrefix,
+  markAsReadUrl,
   authHeaders = {},
 }: FloatingChatProps) {
   const [open, setOpen] = useState(false);
@@ -57,7 +60,6 @@ export default function FloatingChat({
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const lastSeenCountRef = useRef(0);
   const openRef = useRef(false);
   const authHeadersRef = useRef(authHeaders);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -65,9 +67,19 @@ export default function FloatingChat({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevMessageCountRef = useRef(0);
+  const hasMarkedReadRef = useRef(false);
 
   openRef.current = open;
   authHeadersRef.current = authHeaders;
+
+  const markAsRead = useCallback(async () => {
+    try {
+      const headers: Record<string, string> = {
+        ...(typeof authHeadersRef.current === 'object' ? authHeadersRef.current : {}),
+      };
+      await fetch(markAsReadUrl, { method: "POST", headers });
+    } catch (_) {}
+  }, [markAsReadUrl]);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -76,15 +88,19 @@ export default function FloatingChat({
       if (res.ok) {
         const data: ChatMessage[] = await res.json();
         setMessages(data);
-        if (!openRef.current) {
-          const otherMessages = data.filter(m => m.sender_type !== senderType).length;
-          const newUnread = Math.max(0, otherMessages - lastSeenCountRef.current);
-          setUnreadCount(data.length > 0 && newUnread > 0 ? newUnread : 0);
+        const unreadFromOther = data.filter(m => m.sender_type !== senderType && !m.read_at).length;
+        if (openRef.current) {
+          if (unreadFromOther > 0) {
+            markAsRead();
+          }
+          setUnreadCount(0);
+        } else {
+          setUnreadCount(unreadFromOther);
         }
       }
     } catch (_) {}
     setLoading(false);
-  }, [fetchUrl, senderType]);
+  }, [fetchUrl, senderType, markAsRead]);
 
   useEffect(() => {
     fetchMessages();
@@ -103,8 +119,11 @@ export default function FloatingChat({
 
   useEffect(() => {
     if (open) {
-      const otherCount = messages.filter(m => m.sender_type !== senderType).length;
-      lastSeenCountRef.current = otherCount;
+      const unreadFromOther = messages.filter(m => m.sender_type !== senderType && !m.read_at).length;
+      if (unreadFromOther > 0 && !hasMarkedReadRef.current) {
+        markAsRead();
+        hasMarkedReadRef.current = true;
+      }
       setUnreadCount(0);
       setTimeout(() => {
         if (scrollContainerRef.current) {
@@ -113,9 +132,9 @@ export default function FloatingChat({
         inputRef.current?.focus();
       }, 100);
     } else {
-      lastSeenCountRef.current = messages.filter(m => m.sender_type !== senderType).length;
+      hasMarkedReadRef.current = false;
     }
-  }, [open, messages, senderType]);
+  }, [open, senderType, markAsRead]);
 
   const handleSend = async () => {
     if (!text.trim() && !file) return;
@@ -311,11 +330,30 @@ export default function FloatingChat({
                           )}
                         </div>
                       )}
-                      <p className={`text-[9px] mt-1 ${
-                        isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
-                      }`}>
-                        {formatTime(msg.created_at)}
-                      </p>
+                      <div className={`flex items-center gap-1 mt-1 ${isMine ? "justify-end" : ""}`}>
+                        <span className={`text-[9px] ${
+                          isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
+                        }`}>
+                          {formatTime(msg.created_at)}
+                        </span>
+                        {isMine && (
+                          <span
+                            className={`inline-flex items-center ${
+                              msg.read_at
+                                ? "text-blue-300"
+                                : "text-primary-foreground/40"
+                            }`}
+                            title={msg.read_at ? `Read ${formatTime(msg.read_at)}` : "Sent"}
+                            data-testid={`read-receipt-${msg.id}`}
+                          >
+                            {msg.read_at ? (
+                              <CheckCheck className="h-3 w-3" />
+                            ) : (
+                              <Check className="h-3 w-3" />
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

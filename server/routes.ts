@@ -757,6 +757,13 @@ export async function registerRoutes(
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 
+  app.post("/api/orders/:id/chats/read", requireAdmin, async (req, res) => {
+    try {
+      await storage.markChatsAsRead(Number(req.params.id), "admin");
+      res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
   app.post("/api/orders/:id/chats", requireAdmin, upload.single("file"), async (req, res) => {
     try {
       const orderId = Number(req.params.id);
@@ -1889,6 +1896,22 @@ export async function registerRoutes(
 
       const chats = await storage.getOrderChats(order.id);
       res.json(chats);
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
+  app.post("/api/portal/:token/orders/:orderId/chats/read", async (req, res) => {
+    try {
+      const link = await storage.getPortalLinkByToken(req.params.token);
+      if (!link) return res.status(404).json({ message: "Link not found", code: "NOT_FOUND" });
+      if (link.is_revoked) return res.status(410).json({ message: "This link has been revoked", code: "REVOKED" });
+
+      const order = await storage.getOrder(Number(req.params.orderId));
+      if (!order || order.customer_id !== link.customer_id) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      await storage.markChatsAsRead(order.id, "customer");
+      res.json({ success: true });
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 

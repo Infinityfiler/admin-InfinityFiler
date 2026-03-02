@@ -571,6 +571,8 @@ export async function runMigrations() {
 
       ALTER TABLE order_chats ENABLE ROW LEVEL SECURITY;
 
+      ALTER TABLE order_chats ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ DEFAULT NULL;
+
       CREATE TABLE IF NOT EXISTS document_requests (
         id SERIAL PRIMARY KEY,
         order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,

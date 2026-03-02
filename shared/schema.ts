@@ -576,6 +576,7 @@ export interface OrderChat {
   file_name: string;
   file_path: string;
   dropbox_path: string;
+  read_at: string | null;
   created_at: string;
 }
 

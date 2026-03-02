@@ -615,6 +615,34 @@ export class SupabaseStorage implements IStorage {
     return data;
   }
 
+  async markChatsAsRead(orderId: number, readerType: "admin" | "customer"): Promise<void> {
+    const otherType = readerType === "admin" ? "customer" : "admin";
+    const { error } = await supabase
+      .from("order_chats")
+      .update({ read_at: new Date().toISOString() })
+      .eq("order_id", orderId)
+      .eq("sender_type", otherType)
+      .is("read_at", null);
+    if (error) throw error;
+  }
+
+  async getUnreadChatCounts(readerType: "admin" | "customer"): Promise<Record<number, number>> {
+    const otherType = readerType === "admin" ? "customer" : "admin";
+    const { data, error } = await supabase
+      .from("order_chats")
+      .select("order_id")
+      .eq("sender_type", otherType)
+      .is("read_at", null);
+    if (error) throw error;
+    const counts: Record<number, number> = {};
+    if (data) {
+      for (const row of data) {
+        counts[row.order_id] = (counts[row.order_id] || 0) + 1;
+      }
+    }
+    return counts;
+  }
+
   async getDocumentRequests(orderId: number): Promise<DocumentRequest[]> {
     const { data, error } = await supabase.from("document_requests").select("*").eq("order_id", orderId).order("created_at", { ascending: true });
     if (error) throw error;
