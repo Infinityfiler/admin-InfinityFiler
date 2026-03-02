@@ -598,6 +598,7 @@ export default function InvoiceDetail() {
       <div class="meta-col">
         <div class="meta-label">Referred By</div>
         <div class="meta-value">${esc(referralPartner?.full_name || referralName)}</div>
+        ${referralPartner?.company_name ? `<div class="meta-sub" style="font-weight:600;">${esc(referralPartner.company_name)}</div>` : ""}
         ${referralPartner?.phone ? `<div class="meta-sub">${esc(referralPartner.phone)}</div>` : ""}
         ${referralPartner?.email ? `<div class="meta-sub">${esc(referralPartner.email)}</div>` : ""}
         ${referralPartner?.referral_code ? `<div class="meta-sub">Code: ${esc(referralPartner.referral_code)}</div>` : ""}
@@ -887,6 +888,7 @@ export default function InvoiceDetail() {
               <div data-testid="text-invoice-referral">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">Referred By</p>
                 <p className="font-semibold text-foreground">{referralPartner?.full_name || referralName}</p>
+                {referralPartner?.company_name && <p className="text-sm text-foreground">{referralPartner.company_name}</p>}
                 {referralPartner?.phone && <p className="text-sm text-muted-foreground">{referralPartner.phone}</p>}
                 {referralPartner?.email && <p className="text-sm text-muted-foreground">{referralPartner.email}</p>}
                 {referralPartner?.referral_code && <p className="text-sm text-muted-foreground">Code: {referralPartner.referral_code}</p>}

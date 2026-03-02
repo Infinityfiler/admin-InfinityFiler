@@ -1017,7 +1017,7 @@ interface InvoiceDetailData {
   payments: InvoicePayment[];
   settings: CompanySettings | null;
   referralName?: string;
-  referralPartnerInfo?: { full_name: string; phone: string; email: string; referral_code: string } | null;
+  referralPartnerInfo?: { full_name: string; phone: string; email: string; referral_code: string; company_name: string } | null;
 }
 
 function InvoicesTab({
@@ -1435,6 +1435,7 @@ function InvoiceDetailView({
       <div class="meta-col">
         <div class="meta-label">Referred By</div>
         <div class="meta-value">${esc(referralPartnerInfo?.full_name || referralName || "")}</div>
+        ${referralPartnerInfo?.company_name ? `<div class="meta-sub" style="font-weight:600;">${esc(referralPartnerInfo.company_name)}</div>` : ""}
         ${referralPartnerInfo?.phone ? `<div class="meta-sub">${esc(referralPartnerInfo.phone)}</div>` : ""}
         ${referralPartnerInfo?.email ? `<div class="meta-sub">${esc(referralPartnerInfo.email)}</div>` : ""}
         ${referralPartnerInfo?.referral_code ? `<div class="meta-sub">Code: ${esc(referralPartnerInfo.referral_code)}</div>` : ""}
@@ -1639,6 +1640,9 @@ function InvoiceDetailView({
             <CardContent className="p-4 sm:p-6">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-2">Referred By</p>
               <p className="font-semibold text-foreground">{referralPartnerInfo?.full_name || referralName}</p>
+              {referralPartnerInfo?.company_name && (
+                <p className="text-sm text-foreground">{referralPartnerInfo.company_name}</p>
+              )}
               {referralPartnerInfo?.phone && (
                 <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                   <Phone className="h-3 w-3" /> {referralPartnerInfo.phone}

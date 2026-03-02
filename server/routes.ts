@@ -1909,7 +1909,7 @@ export async function registerRoutes(
       const settings = await storage.getCompanySettings();
 
       let referralName = "";
-      let referralPartnerInfo: { full_name: string; phone: string; email: string; referral_code: string } | null = null;
+      let referralPartnerInfo: { full_name: string; phone: string; email: string; referral_code: string; company_name: string } | null = null;
       try {
         const customer = await storage.getCustomer(link.customer_id);
         if (customer) {
@@ -1922,6 +1922,7 @@ export async function registerRoutes(
                 phone: partner.phone || "",
                 email: partner.email || "",
                 referral_code: partner.referral_code || "",
+                company_name: partner.company_name || "",
               };
             }
           }
