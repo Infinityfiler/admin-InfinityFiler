@@ -473,30 +473,7 @@ export default function EditInvoice() {
                     </div>
                     <div>
                       <Label className="text-xs">Unit Price ($)</Label>
-                      <Input type="number" min={0} step="0.01" value={item.unit_price} onChange={(e) => {
-                        const newPrice = Number(e.target.value);
-                        const updated = [...items];
-                        updated[index] = { ...updated[index], unit_price: newPrice };
-                        if (item.service_id && partnerRates.length > 0) {
-                          const service = services.find(s => s.id === item.service_id);
-                          if (service) {
-                            const catalogPrice = getServicePrice(service);
-                            if (newPrice < catalogPrice) {
-                              const diff = catalogPrice - newPrice;
-                              const pctDiscount = ((diff / catalogPrice) * 100);
-                              const label = pctDiscount === Math.round(pctDiscount)
-                                ? `${Math.round(pctDiscount)}% partner discount`
-                                : `$${diff.toFixed(2)} partner discount`;
-                              updated[index].original_price = catalogPrice;
-                              updated[index].partner_discount_label = label;
-                            } else {
-                              updated[index].original_price = undefined;
-                              updated[index].partner_discount_label = undefined;
-                            }
-                          }
-                        }
-                        setItems(updated);
-                      }} />
+                      <Input type="number" min={0} step="0.01" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))} />
                       {item.partner_discount_label && item.original_price !== undefined && (
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className="text-[10px] text-muted-foreground line-through">${item.original_price.toFixed(2)}</span>
