@@ -38,6 +38,9 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [userenv]
 
 [userenv.shared]
@@ -47,7 +50,6 @@ SUPABASE_DB_PORT = "6543"
 SUPABASE_DB_NAME = "postgres"
 SUPABASE_DB_USER = "postgres.xjwjkavutkadjxhxndkt"
 DROPBOX_APP_KEY = "vv6gypecbdftjhh"
-DROPBOX_APP_SECRET = "2fqacyemmxh58ch"
 
 [agent]
 expertMode = true
