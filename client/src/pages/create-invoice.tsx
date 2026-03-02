@@ -44,8 +44,6 @@ interface LineItem {
   fromBundle?: string;
   currencyTax: boolean;
   llc_type: string;
-  original_price?: number;
-  partner_discount_label?: string;
 }
 
 function isLLCFormation(item: LineItem, services: Service[]): boolean {
@@ -142,16 +140,24 @@ export default function CreateInvoice() {
     } catch { setReferralPartner(null); }
   };
 
-  const applyPartnerDiscount = (price: number, serviceId: number | null): { price: number; original: number; label: string } => {
-    if (!serviceId || partnerRates.length === 0) return { price, original: price, label: "" };
+  const getPartnerDiscountInfo = (serviceId: number | null): { discountType: string; discountValue: number; label: string } | null => {
+    if (!serviceId || partnerRates.length === 0) return null;
     const rate = partnerRates.find(r => r.service_id === serviceId);
-    if (!rate || Number(rate.discount_value) === 0) return { price, original: price, label: "" };
+    if (!rate || Number(rate.discount_value) === 0) return null;
     const discountValue = Number(rate.discount_value);
     if (rate.discount_type === "percentage") {
-      const discounted = price - (price * discountValue / 100);
-      return { price: Math.max(0, discounted), original: price, label: `${discountValue}% partner discount` };
+      return { discountType: "percentage", discountValue, label: `${discountValue}% partner discount` };
     }
-    return { price: Math.max(0, price - discountValue), original: price, label: `$${discountValue.toFixed(2)} partner discount` };
+    return { discountType: "fixed", discountValue, label: `$${discountValue.toFixed(2)} partner discount` };
+  };
+
+  const getEffectivePrice = (item: LineItem): number => {
+    const info = getPartnerDiscountInfo(item.service_id);
+    if (!info) return item.unit_price;
+    if (info.discountType === "percentage") {
+      return Math.max(0, item.unit_price - (item.unit_price * info.discountValue / 100));
+    }
+    return Math.max(0, item.unit_price - info.discountValue);
   };
 
   const handleDocFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,7 +207,7 @@ export default function CreateInvoice() {
     onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.quantity * getEffectivePrice(item), 0);
   const discCalc = discountPercentage > 0 ? subtotal * (discountPercentage / 100) : discountAmount;
   const total = subtotal - discCalc;
 
@@ -218,19 +224,16 @@ export default function CreateInvoice() {
     const service = services.find(s => s.id === Number(serviceId));
     if (service) {
       const totalPrice = getServicePrice(service);
-      const { price, original, label } = applyPartnerDiscount(totalPrice, service.id);
       const updated = [...items];
       updated[index] = {
         description: `${service.name} - ${service.category}${service.state ? ` (${service.state})` : ""}`,
         state: service.state,
         quantity: 1,
-        unit_price: price,
+        unit_price: totalPrice,
         service_id: service.id,
         includes: service.includes || [],
         currencyTax: true,
         llc_type: "",
-        original_price: label ? original : undefined,
-        partner_discount_label: label || undefined,
       };
       setItems(updated);
     }
@@ -256,20 +259,16 @@ export default function CreateInvoice() {
         itemPrice = price - discount;
       }
 
-      const { price: finalPrice, original, label } = applyPartnerDiscount(itemPrice, bi.service_id);
-
       return {
         description: `${bi.service_name || service?.name || "Service"} - ${bi.service_category || service?.category || ""}${(bi.service_state || service?.state) ? ` (${bi.service_state || service?.state})` : ""}`,
         state: bi.service_state || service?.state || "",
         quantity: 1,
-        unit_price: finalPrice,
+        unit_price: itemPrice,
         service_id: bi.service_id,
         includes: service?.includes || [],
         fromBundle: bundle.name,
         currencyTax: true,
         llc_type: "",
-        original_price: label ? original : undefined,
-        partner_discount_label: label || undefined,
       };
     });
 
@@ -329,26 +328,30 @@ export default function CreateInvoice() {
     mutationFn: async () => {
       if (!selectedCustomer) throw new Error("Select a customer");
       const validItems = items.filter(i => i.description);
-      const invoiceItems = validItems.map(item => ({
-        description: item.description,
-        state: item.state,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.quantity * item.unit_price,
-        service_id: item.service_id,
-        includes: item.includes || [],
-        currency_tax: item.currencyTax,
-        llc_type: item.llc_type,
-        original_price: item.original_price ?? null,
-        partner_discount_label: item.partner_discount_label || "",
-      }));
+      const invoiceItems = validItems.map(item => {
+        const effectivePrice = getEffectivePrice(item);
+        const discountInfo = getPartnerDiscountInfo(item.service_id);
+        return {
+          description: item.description,
+          state: item.state,
+          quantity: item.quantity,
+          unit_price: effectivePrice,
+          total: item.quantity * effectivePrice,
+          service_id: item.service_id,
+          includes: item.includes || [],
+          currency_tax: item.currencyTax,
+          llc_type: item.llc_type,
+          original_price: discountInfo ? item.unit_price : null,
+          partner_discount_label: discountInfo?.label || "",
+        };
+      });
 
       let pkrData: any = { pkr_enabled: false, pkr_rate: 0, pkr_tax_rate: 0, pkr_amount: 0, pkr_tax_amount: 0, pkr_total: 0 };
       if (pkrEnabled && exchangeRate) {
         const rate = exchangeRate.rate;
         const taxRate = settings?.currency_conversion_tax ?? 10;
         const pkrAmount = total * rate;
-        const taxableTotal = validItems.filter(i => i.currencyTax).reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+        const taxableTotal = validItems.filter(i => i.currencyTax).reduce((sum, i) => sum + i.quantity * getEffectivePrice(i), 0);
         const discountRatio = subtotal > 0 ? total / subtotal : 1;
         const taxableAfterDiscount = taxableTotal * discountRatio;
         const pkrTaxAmount = taxableAfterDiscount * rate * (taxRate / 100);
@@ -635,14 +638,20 @@ export default function CreateInvoice() {
                     <div>
                       <Label className="text-xs">Unit Price ($)</Label>
                       <Input type="number" min={0} step="0.01" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))} data-testid={`input-item-price-${index}`} />
-                      {item.partner_discount_label && item.original_price !== undefined && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[10px] text-muted-foreground line-through">${item.original_price.toFixed(2)}</span>
-                          <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 border-green-200" data-testid={`badge-partner-discount-${index}`}>
-                            {item.partner_discount_label}
-                          </Badge>
-                        </div>
-                      )}
+                      {(() => {
+                        const discountInfo = getPartnerDiscountInfo(item.service_id);
+                        if (!discountInfo || item.unit_price <= 0) return null;
+                        const effectivePrice = getEffectivePrice(item);
+                        return (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[10px] text-muted-foreground line-through">${item.unit_price.toFixed(2)}</span>
+                            <span className="text-[10px] font-medium text-green-700">${effectivePrice.toFixed(2)}</span>
+                            <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 border-green-200" data-testid={`badge-partner-discount-${index}`}>
+                              {discountInfo.label}
+                            </Badge>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   {isLLCFormation(item, services) && (
@@ -688,7 +697,7 @@ export default function CreateInvoice() {
                         <span className="text-xs text-muted-foreground">Conv. Tax</span>
                       </label>
                     )}
-                    <p className="text-sm font-medium text-right ml-auto">Line Total: ${(item.quantity * item.unit_price).toFixed(2)}</p>
+                    <p className="text-sm font-medium text-right ml-auto">Line Total: ${(item.quantity * getEffectivePrice(item)).toFixed(2)}</p>
                   </div>
                 </div>
               ))}
@@ -716,18 +725,15 @@ export default function CreateInvoice() {
                     ) : filteredServices.map(s => (
                       <div key={s.id} className="flex items-center justify-between px-3 py-2 hover:bg-accent/50 cursor-pointer" onClick={() => {
                         const basePrice = getServicePrice(s);
-                        const { price, original, label } = applyPartnerDiscount(basePrice, s.id);
                         const newItem: LineItem = {
                           description: `${s.name} - ${s.category}${s.state ? ` (${s.state})` : ""}`,
                           state: s.state,
                           quantity: 1,
-                          unit_price: price,
+                          unit_price: basePrice,
                           service_id: s.id,
                           includes: s.includes || [],
                           currencyTax: true,
                           llc_type: "",
-                          original_price: label ? original : undefined,
-                          partner_discount_label: label || undefined,
                         };
                         const hasEmptyFirst = items.length === 1 && !items[0].description;
                         setItems(hasEmptyFirst ? [newItem] : [...items, newItem]);
@@ -817,7 +823,7 @@ export default function CreateInvoice() {
                   const taxRate = settings?.currency_conversion_tax ?? 10;
                   const validItems = items.filter(i => i.description);
                   const pkrAmount = total * rate;
-                  const taxableTotal = validItems.filter(i => i.currencyTax).reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+                  const taxableTotal = validItems.filter(i => i.currencyTax).reduce((sum, i) => sum + i.quantity * getEffectivePrice(i), 0);
                   const discountRatio = subtotal > 0 ? total / subtotal : 1;
                   const taxableAfterDiscount = taxableTotal * discountRatio;
                   const pkrTaxAmount = taxableAfterDiscount * rate * (taxRate / 100);
