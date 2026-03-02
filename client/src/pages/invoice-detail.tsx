@@ -14,9 +14,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Download, Pencil, Plus, DollarSign, Clock, CheckCircle2, TrendingUp, Share2, Copy, ExternalLink } from "lucide-react";
+import { ArrowLeft, Download, Pencil, Plus, DollarSign, Clock, CheckCircle2, TrendingUp, Share2, Copy, ExternalLink, FileText, XCircle, ShieldCheck } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
-import type { Invoice, InvoiceItem, InvoicePayment, CompanySettings, PaymentMethod, Customer, ReferralPartner, PartnerServiceRate, Service, ProfitLossCostItem, ProfitLossEntry, SmtpAccount, CustomerPortalLink } from "@shared/schema";
+import type { Invoice, InvoiceItem, InvoicePayment, CompanySettings, PaymentMethod, Customer, ReferralPartner, PartnerServiceRate, Service, ProfitLossCostItem, ProfitLossEntry, SmtpAccount, CustomerPortalLink, PaymentProof } from "@shared/schema";
 import logoPath from "@assets/logo_1772131777440.png";
 
 function esc(str: string | null | undefined): string {
@@ -51,6 +51,7 @@ export default function InvoiceDetail() {
   const { data: partnerRates = [] } = useQuery<PartnerServiceRate[]>({ queryKey: [`/api/referral-partners/${customer?.referral_partner_id}/service-rates`], enabled: !!customer?.referral_partner_id });
   const { data: allServices = [] } = useQuery<Service[]>({ queryKey: ["/api/services"], enabled: partnerRates.length > 0 });
   const { data: existingPl } = useQuery<ProfitLossEntry>({ queryKey: [`/api/profit-loss/invoice/${id}`], enabled: !!id });
+  const { data: paymentProofs = [] } = useQuery<PaymentProof[]>({ queryKey: [`/api/invoices/${id}/payment-proofs`], enabled: !!id });
 
   const referralName = referralPartner?.full_name || customer?.referred_by || "";
 
@@ -85,6 +86,13 @@ export default function InvoiceDetail() {
   const [plCosts, setPlCosts] = useState<Record<number, string>>({});
   const [plNotes, setPlNotes] = useState("");
   const [plPendingStatusUpdate, setPlPendingStatusUpdate] = useState(false);
+
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyProof, setVerifyProof] = useState<PaymentProof | null>(null);
+  const [verifyType, setVerifyType] = useState<"full" | "partial">("full");
+  const [verifyPartialAmount, setVerifyPartialAmount] = useState("");
+  const [declineProofId, setDeclineProofId] = useState<number | null>(null);
+  const [declineNote, setDeclineNote] = useState("");
 
   const [shareOpen, setShareOpen] = useState(false);
   const [portalLink, setPortalLink] = useState<CustomerPortalLink | null>(null);
@@ -296,6 +304,70 @@ export default function InvoiceDetail() {
       setPlPendingStatusUpdate(false);
     }
   };
+
+  const declineMutation = useMutation({
+    mutationFn: async () => {
+      if (!declineProofId) throw new Error("No proof selected");
+      await apiRequest("PATCH", `/api/payment-proofs/${declineProofId}`, {
+        status: "declined",
+        admin_note: declineNote,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/invoices/${id}/payment-proofs`] });
+      setDeclineProofId(null);
+      setDeclineNote("");
+      toast({ title: "Payment proof declined" });
+    },
+    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: async () => {
+      if (!verifyProof || !invoice) throw new Error("No proof selected");
+      const totalDueNow = Number(invoice.total);
+      const paidNow = Number(invoice.amount_paid || 0);
+      const remainingNow = totalDueNow - paidNow;
+
+      const paymentAmount = verifyType === "full" ? remainingNow : Number(verifyPartialAmount || 0);
+      if (paymentAmount <= 0) throw new Error("Enter a valid amount");
+
+      const payRes = await apiRequest("POST", `/api/invoices/${id}/payments`, {
+        amount_usd: paymentAmount,
+        amount_pkr: 0,
+        pkr_rate: 0,
+        service_description: `Payment proof verified (#${verifyProof.id})`,
+        note: `Proof: ${verifyProof.file_name}`,
+      });
+      const payData = await payRes.json();
+
+      await apiRequest("PATCH", `/api/payment-proofs/${verifyProof.id}`, {
+        status: "verified",
+        admin_note: verifyType === "full" ? "Full payment verified" : `Partial payment of $${paymentAmount.toFixed(2)} verified`,
+      });
+
+      return payData;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/invoices/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/invoices/${id}/payments`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/invoices/${id}/payment-proofs`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      setVerifyOpen(false);
+      setVerifyProof(null);
+      setVerifyPartialAmount("");
+      setVerifyType("full");
+      toast({ title: "Payment verified and recorded" });
+      if (data?.invoice?.status === "paid") {
+        setPlPendingStatusUpdate(false);
+        queryClient.invalidateQueries({ queryKey: [`/api/profit-loss/invoice/${id}`] }).then(() => {
+          openPlDialog();
+        });
+      }
+    },
+    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
 
   const exportPDF = async () => {
     if (!invoice) return;
@@ -888,6 +960,89 @@ export default function InvoiceDetail() {
             );
           })()}
 
+          {paymentProofs.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold uppercase tracking-wide text-primary flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Payment Proofs
+              </h4>
+              <div className="space-y-2">
+                {paymentProofs.map((proof) => {
+                  const proofStatusStyle = proof.status === "verified"
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                    : proof.status === "declined"
+                    ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+                    : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300";
+                  return (
+                    <div key={proof.id} className="flex items-center gap-3 p-3 rounded-lg border bg-accent/30 flex-wrap" data-testid={`card-proof-${proof.id}`}>
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium" data-testid={`text-proof-date-${proof.id}`}>
+                            {new Date(proof.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                          </span>
+                          <Badge variant="secondary" className={`text-[10px] ${proofStatusStyle}`} data-testid={`badge-proof-status-${proof.id}`}>
+                            {proof.status.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                          <span data-testid={`text-proof-amount-${proof.id}`}>Amount claimed: <span className="font-semibold text-foreground">${Number(proof.amount_claimed).toFixed(2)}</span></span>
+                          {proof.dropbox_view_link ? (
+                            <a
+                              href={proof.dropbox_view_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline flex items-center gap-1"
+                              data-testid={`link-proof-file-${proof.id}`}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              {proof.file_name}
+                            </a>
+                          ) : (
+                            <span>{proof.file_name}</span>
+                          )}
+                        </div>
+                        {proof.admin_note && (
+                          <p className="text-xs text-muted-foreground italic" data-testid={`text-proof-note-${proof.id}`}>Note: {proof.admin_note}</p>
+                        )}
+                      </div>
+                      {proof.status === "pending" && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white no-default-hover-elevate"
+                            onClick={() => {
+                              setVerifyProof(proof);
+                              setVerifyType("full");
+                              setVerifyPartialAmount("");
+                              setVerifyOpen(true);
+                            }}
+                            data-testid={`button-verify-proof-${proof.id}`}
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+                            Verify
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-300 dark:border-red-700"
+                            onClick={() => {
+                              setDeclineProofId(proof.id);
+                              setDeclineNote("");
+                            }}
+                            data-testid={`button-decline-proof-${proof.id}`}
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            Decline
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {payments.length > 0 && (
             <div className="space-y-3">
               <h4 className="text-sm font-bold uppercase tracking-wide text-primary">Payment History</h4>
@@ -1331,6 +1486,116 @@ export default function InvoiceDetail() {
             <Button variant="outline" className="w-full" onClick={() => setShareOpen(false)} data-testid="button-share-close">
               Close
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={verifyOpen} onOpenChange={(open) => { if (!open) { setVerifyOpen(false); setVerifyProof(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-green-600" />
+              Verify Payment Proof
+            </DialogTitle>
+          </DialogHeader>
+          {verifyProof && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-md bg-accent/50 space-y-1">
+                <div className="flex justify-between gap-1 text-sm"><span className="text-muted-foreground">Amount Claimed</span><span className="font-bold">${Number(verifyProof.amount_claimed).toFixed(2)}</span></div>
+                <div className="flex justify-between gap-1 text-sm"><span className="text-muted-foreground">File</span><span className="font-medium truncate ml-2">{verifyProof.file_name}</span></div>
+                <div className="flex justify-between gap-1 text-sm border-t pt-1"><span className="text-muted-foreground">Remaining Balance</span><span className="font-bold text-red-600">${remaining > 0 ? remaining.toFixed(2) : "0.00"}</span></div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Payment Type</Label>
+                <div className="space-y-2">
+                  <div
+                    className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer hover-elevate ${verifyType === "full" ? "border-green-500 bg-green-50 dark:bg-green-950/30" : ""}`}
+                    onClick={() => setVerifyType("full")}
+                    data-testid="radio-verify-full"
+                  >
+                    <div className={`h-4 w-4 rounded-full border-2 shrink-0 ${verifyType === "full" ? "border-green-600 bg-green-600" : "border-muted-foreground"}`} />
+                    <div className="flex-1">
+                      <span className="font-medium text-sm">Full Payment</span>
+                      <span className="text-xs text-muted-foreground block">Record ${remaining > 0 ? remaining.toFixed(2) : "0.00"} as the full remaining balance</span>
+                    </div>
+                  </div>
+                  <div
+                    className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer hover-elevate ${verifyType === "partial" ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30" : ""}`}
+                    onClick={() => setVerifyType("partial")}
+                    data-testid="radio-verify-partial"
+                  >
+                    <div className={`h-4 w-4 rounded-full border-2 shrink-0 ${verifyType === "partial" ? "border-blue-600 bg-blue-600" : "border-muted-foreground"}`} />
+                    <div className="flex-1">
+                      <span className="font-medium text-sm">Partial Payment</span>
+                      <span className="text-xs text-muted-foreground block">Record a specific amount</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {verifyType === "partial" && (
+                <div>
+                  <Label className="text-xs">Amount (USD)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    value={verifyPartialAmount}
+                    onChange={(e) => setVerifyPartialAmount(e.target.value)}
+                    data-testid="input-verify-partial-amount"
+                  />
+                </div>
+              )}
+
+              <Button
+                className="w-full"
+                onClick={() => verifyMutation.mutate()}
+                disabled={verifyMutation.isPending || (verifyType === "partial" && (!verifyPartialAmount || Number(verifyPartialAmount) <= 0))}
+                data-testid="button-confirm-verify"
+              >
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                {verifyMutation.isPending ? "Processing..." : verifyType === "full" ? `Verify & Record $${remaining > 0 ? remaining.toFixed(2) : "0.00"}` : `Verify & Record $${Number(verifyPartialAmount || 0).toFixed(2)}`}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={declineProofId !== null} onOpenChange={(open) => { if (!open) { setDeclineProofId(null); setDeclineNote(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-red-600" />
+              Decline Payment Proof
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs">Reason (optional)</Label>
+              <Textarea
+                placeholder="Enter reason for declining..."
+                value={declineNote}
+                onChange={(e) => setDeclineNote(e.target.value)}
+                rows={3}
+                data-testid="input-decline-note"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => declineMutation.mutate()}
+                disabled={declineMutation.isPending}
+                data-testid="button-confirm-decline"
+              >
+                {declineMutation.isPending ? "Declining..." : "Decline Proof"}
+              </Button>
+              <Button variant="outline" onClick={() => { setDeclineProofId(null); setDeclineNote(""); }} data-testid="button-cancel-decline">
+                Cancel
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

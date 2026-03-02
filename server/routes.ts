@@ -3,13 +3,13 @@ import { type Server } from "http";
 import { storage, calculateAnnualReportDue, calculateFederalTaxDue } from "./storage";
 import { insertCustomerSchema, insertServiceSchema, insertInvoiceSchema, insertSmtpSchema, insertReferralPartnerSchema, insertPortalLinkSchema } from "@shared/schema";
 import type { ComplianceRecord } from "@shared/schema";
-import { initializeDatabase } from "./supabase";
+import { initializeDatabase, supabase } from "./supabase";
 import multer from "multer";
 import nodemailer from "nodemailer";
 import {
   getDropboxAuthUrl, exchangeCodeForToken, isDropboxConnected,
   getDropboxAccountInfo, uploadToDropbox, downloadFromDropbox,
-  deleteFromDropbox, disconnectDropbox
+  deleteFromDropbox, disconnectDropbox, createDropboxSharedLink
 } from "./dropbox";
 import path from "path";
 import mime from "mime-types";
@@ -17,6 +17,14 @@ import { requireAdmin } from "./auth";
 import authRoutes from "./auth-routes";
 
 const upload = multer({ storage: multer.memoryStorage() });
+const proofUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+    if (allowed.includes(file.mimetype)) { cb(null, true); } else { cb(new Error("Only images and PDFs are allowed")); }
+  },
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -2235,6 +2243,95 @@ export async function registerRoutes(
       });
 
       res.json({ success: true });
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
+  app.get("/api/invoices/:id/payment-proofs", requireAdmin, async (req, res) => {
+    try {
+      const proofs = await storage.getPaymentProofs(Number(req.params.id));
+      res.json(proofs);
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
+  app.patch("/api/payment-proofs/:proofId", requireAdmin, async (req, res) => {
+    try {
+      const proofId = Number(req.params.proofId);
+      const { status, admin_note } = req.body;
+
+      if (status && !["pending", "verified", "declined"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const { data: existingProof } = await supabase
+        .from("payment_proofs").select("*").eq("id", proofId).single();
+
+      if (!existingProof) {
+        return res.status(404).json({ message: "Proof not found" });
+      }
+
+      if (existingProof.status !== "pending" && status) {
+        return res.status(400).json({ message: `Proof already ${existingProof.status}` });
+      }
+
+      const updateData: any = {};
+      if (status) updateData.status = status;
+      if (admin_note !== undefined) updateData.admin_note = admin_note;
+
+      const proof = await storage.updatePaymentProof(proofId, updateData);
+      res.json(proof);
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
+  app.post("/api/portal/:token/invoices/:invoiceId/payment-proof", proofUpload.single("file"), async (req, res) => {
+    try {
+      const link = await storage.getPortalLinkByToken(req.params.token);
+      if (!link) return res.status(404).json({ message: "Link not found", code: "NOT_FOUND" });
+      if (link.is_revoked) return res.status(410).json({ message: "This link has been revoked", code: "REVOKED" });
+
+      const invoice = await storage.getInvoice(Number(req.params.invoiceId));
+      if (!invoice || invoice.customer_id !== link.customer_id) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+      const amount = Number(req.body.amount || 0);
+      if (amount <= 0) return res.status(400).json({ message: "Invalid amount" });
+
+      const safeCompany = (invoice.company_name || "Customer").replace(/[^a-zA-Z0-9 _-]/g, "");
+      const safeInvoice = (invoice.invoice_number || "INV").replace(/[^a-zA-Z0-9 _-]/g, "");
+      const ext = path.extname(req.file.originalname);
+      const baseName = path.basename(req.file.originalname, ext).replace(/[^a-zA-Z0-9 _-]/g, "");
+      const dropboxPath = `/InfinityFiler/PaymentProofs/${safeCompany} - ${safeInvoice}/${baseName}_${Date.now()}${ext}`;
+
+      const uploadResult = await uploadToDropbox(req.file.buffer, dropboxPath);
+
+      let viewLink = "";
+      try {
+        viewLink = await createDropboxSharedLink(uploadResult.path);
+      } catch (linkErr) {
+        console.error("Failed to create shared link:", linkErr);
+      }
+
+      const proof = await storage.createPaymentProof({
+        invoice_id: invoice.id,
+        customer_id: link.customer_id,
+        amount_claimed: amount,
+        file_name: req.file.originalname,
+        dropbox_path: uploadResult.path,
+        dropbox_view_link: viewLink,
+        status: "pending",
+        admin_note: "",
+      });
+
+      await storage.logLinkActivity({
+        link_id: link.id, customer_id: link.customer_id, action: "payment_proof_uploaded",
+        details: { invoice_id: invoice.id, invoice_number: invoice.invoice_number, amount, file_name: req.file.originalname },
+        ip_address: (req.headers["x-forwarded-for"] as string || req.ip || "").split(",")[0].trim(),
+        user_agent: req.headers["user-agent"] || "",
+      });
+
+      res.json({ success: true, dropboxViewLink: viewLink, proof });
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 

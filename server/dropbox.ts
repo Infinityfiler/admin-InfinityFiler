@@ -206,6 +206,54 @@ export async function deleteFromDropbox(dropboxPath: string): Promise<void> {
   }
 }
 
+export async function createDropboxSharedLink(dropboxPath: string): Promise<string> {
+  const token = await getAccessToken();
+
+  const res = await fetch("https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      path: dropboxPath,
+      settings: { requested_visibility: "public", audience: "public" },
+    }),
+  });
+
+  if (res.ok) {
+    const data = await res.json();
+    return data.url || "";
+  }
+
+  const errText = await res.text();
+  try {
+    const errJson = JSON.parse(errText);
+    if (errJson?.error?.shared_link_already_exists) {
+      const existingUrl = errJson.error.shared_link_already_exists?.metadata?.url;
+      if (existingUrl) return existingUrl;
+    }
+    if (errJson?.error?.[".tag"] === "shared_link_already_exists") {
+      const listRes = await fetch("https://api.dropboxapi.com/2/sharing/list_shared_links", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ path: dropboxPath, direct_only: true }),
+      });
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        if (listData.links && listData.links.length > 0) {
+          return listData.links[0].url;
+        }
+      }
+    }
+  } catch {}
+
+  throw new Error(`Failed to create Dropbox shared link: ${errText}`);
+}
+
 export async function disconnectDropbox(): Promise<void> {
   try {
     const token = await getAccessToken();

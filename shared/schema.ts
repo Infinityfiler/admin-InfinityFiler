@@ -619,6 +619,19 @@ export const insertDocumentRequestSchema = z.object({
 
 export type InsertDocumentRequest = z.infer<typeof insertDocumentRequestSchema>;
 
+export interface PaymentProof {
+  id: number;
+  invoice_id: number;
+  customer_id: number;
+  amount_claimed: number;
+  file_name: string;
+  dropbox_path: string;
+  dropbox_view_link: string;
+  status: string;
+  admin_note: string;
+  created_at: string;
+}
+
 export const US_STATES = [
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
   "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa",

@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { countries } from "@/lib/countries";
 import {
   Package, FileText, User, Upload, Trash2, Download, Eye,
@@ -16,6 +17,7 @@ import {
   Phone, Mail, MapPin, Building2, Globe, FileUp, X, ArrowLeft,
   Activity, RefreshCw, StickyNote, Calendar, MessageSquare, ClipboardList
 } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import FloatingChat from "@/components/floating-chat";
 import logoPath from "@assets/logo_1772131777440.png";
 import type {
@@ -994,6 +996,7 @@ function InvoicesTab({
           data={detailData}
           paymentMethods={paymentMethods}
           portalData={portalData}
+          token={token}
           onBack={handleBack}
         />
       );
@@ -1083,13 +1086,16 @@ function InvoiceDetailView({
   data,
   paymentMethods,
   portalData,
+  token,
   onBack,
 }: {
   data: InvoiceDetailData;
   paymentMethods: PaymentMethod[];
   portalData: PortalData;
+  token: string;
   onBack: () => void;
 }) {
+  const { toast } = useToast();
   const { invoice, items, payments, settings } = data;
   const amountPaid = Number(invoice.amount_paid || 0);
   const totalDue = Number(invoice.total);
@@ -1104,6 +1110,51 @@ function InvoiceDetailView({
   const companyAddr = settings?.address || "";
   const companyPhone = settings?.phone || portalData.company?.phone || "";
   const companyEmail = settings?.support_email || portalData.company?.support_email || "";
+
+  const [proofDialogOpen, setProofDialogOpen] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofAmount, setProofAmount] = useState("");
+  const [proofUploading, setProofUploading] = useState(false);
+  const proofFileRef = useRef<HTMLInputElement>(null);
+
+  const whatsappNumber = settings?.whatsapp || portalData.company?.whatsapp || "";
+
+  const handleProofSubmit = async () => {
+    if (!proofFile || !proofAmount) return;
+    setProofUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", proofFile);
+      formData.append("amount", proofAmount);
+      const res = await portalFetch(`/api/portal/${token}/invoices/${invoice.id}/payment-proof`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Upload failed" }));
+        throw new Error(err.message);
+      }
+      const result = await res.json();
+      toast({ title: "Proof of payment uploaded successfully" });
+      setProofDialogOpen(false);
+      setProofFile(null);
+      setProofAmount("");
+      if (proofFileRef.current) proofFileRef.current.value = "";
+
+      const cleanNumber = whatsappNumber.replace(/[^0-9]/g, "");
+      if (cleanNumber) {
+        const message = `Hi, I've made a payment of $${proofAmount} for Invoice ${invoice.invoice_number}. Proof of payment: ${result.dropboxViewLink || "attached"}.  Please verify.`;
+        const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+        window.open(waUrl, "_blank");
+      } else {
+        toast({ title: "Proof uploaded", description: "WhatsApp number not available. Please contact support directly." });
+      }
+    } catch (e) {
+      toast({ title: "Upload failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setProofUploading(false);
+    }
+  };
 
   const fmtPkr = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -1380,10 +1431,22 @@ function InvoiceDetailView({
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Invoices
         </Button>
-        <Button onClick={exportPDF} data-testid="button-download-pdf">
-          <Download className="h-4 w-4 mr-2" />
-          Download PDF
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {invoice.status !== "paid" && (
+            <Button
+              onClick={() => setProofDialogOpen(true)}
+              className="bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-700 dark:border-emerald-800"
+              data-testid="button-send-proof"
+            >
+              <SiWhatsapp className="h-4 w-4 mr-2" />
+              Send Proof of Payment
+            </Button>
+          )}
+          <Button onClick={exportPDF} data-testid="button-download-pdf">
+            <Download className="h-4 w-4 mr-2" />
+            Download PDF
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -1649,6 +1712,54 @@ function InvoiceDetailView({
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={proofDialogOpen} onOpenChange={setProofDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Proof of Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Upload Proof (Image or PDF)</Label>
+              <Input
+                ref={proofFileRef}
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                data-testid="input-proof-file"
+              />
+              {proofFile && (
+                <p className="text-xs text-muted-foreground mt-1">{proofFile.name}</p>
+              )}
+            </div>
+            <div>
+              <Label>Amount Paid (USD)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={proofAmount}
+                onChange={(e) => setProofAmount(e.target.value)}
+                data-testid="input-proof-amount"
+              />
+            </div>
+            <Button
+              onClick={handleProofSubmit}
+              disabled={proofUploading || !proofFile || !proofAmount}
+              className="w-full bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-700 dark:border-emerald-800"
+              data-testid="button-upload-proof"
+            >
+              {proofUploading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <SiWhatsapp className="h-4 w-4 mr-2" />
+              )}
+              {proofUploading ? "Uploading..." : "Upload & Send via WhatsApp"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

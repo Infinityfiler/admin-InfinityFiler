@@ -588,6 +588,23 @@ export async function runMigrations() {
       ALTER TABLE document_requests ENABLE ROW LEVEL SECURITY;
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payment_proofs (
+        id SERIAL PRIMARY KEY,
+        invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
+        customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+        amount_claimed NUMERIC DEFAULT 0,
+        file_name TEXT DEFAULT '',
+        dropbox_path TEXT DEFAULT '',
+        dropbox_view_link TEXT DEFAULT '',
+        status TEXT DEFAULT 'pending',
+        admin_note TEXT DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      ALTER TABLE payment_proofs ENABLE ROW LEVEL SECURITY;
+    `);
+
     console.log("All tables created successfully, RLS enabled");
 
     const { rows } = await client.query("SELECT COUNT(*) as count FROM company_settings");

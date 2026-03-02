@@ -13,6 +13,7 @@ import type {
   LinkActivityLog, InsertLinkActivity,
   OrderChat, InsertOrderChat,
   DocumentRequest, InsertDocumentRequest,
+  PaymentProof,
 } from "@shared/schema";
 import crypto from "crypto";
 
@@ -150,6 +151,10 @@ export interface IStorage {
   incrementPortalView(id: number): Promise<void>;
   logLinkActivity(data: InsertLinkActivity): Promise<LinkActivityLog>;
   getLinkActivityLog(linkId: number): Promise<LinkActivityLog[]>;
+
+  getPaymentProofs(invoiceId: number): Promise<PaymentProof[]>;
+  createPaymentProof(data: Partial<PaymentProof>): Promise<PaymentProof>;
+  updatePaymentProof(id: number, data: Partial<PaymentProof>): Promise<PaymentProof>;
 
   getDashboardStats(): Promise<any>;
   markOverdueInvoices(): Promise<number>;
@@ -949,6 +954,37 @@ export class SupabaseStorage implements IStorage {
     const { data, error } = await supabase
       .from("invoice_payments")
       .insert(input)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async getPaymentProofs(invoiceId: number): Promise<PaymentProof[]> {
+    const { data, error } = await supabase
+      .from("payment_proofs")
+      .select("*")
+      .eq("invoice_id", invoiceId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async createPaymentProof(input: Partial<PaymentProof>): Promise<PaymentProof> {
+    const { data, error } = await supabase
+      .from("payment_proofs")
+      .insert(input)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async updatePaymentProof(id: number, input: Partial<PaymentProof>): Promise<PaymentProof> {
+    const { data, error } = await supabase
+      .from("payment_proofs")
+      .update(input)
+      .eq("id", id)
       .select()
       .single();
     if (error) throw error;
