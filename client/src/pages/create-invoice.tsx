@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,10 +14,15 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, ArrowLeft, Package, Search, UserPlus, Copy, Send, MessageSquare, Mail, ExternalLink } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Package, Search, UserPlus, Copy, Send, MessageSquare, Mail, ExternalLink, ShieldCheck, FileText, X } from "lucide-react";
 import type { Customer, Service, BundlePackage, BundleItem, CompanySettings, PartnerServiceRate, CustomerPortalLink, SmtpAccount } from "@shared/schema";
 import { Link } from "wouter";
 import CustomerFormFields from "@/components/customer-form-fields";
+
+interface DocFile {
+  file: File;
+  docName: string;
+}
 
 const STATE_SPECIFIC_CATEGORIES = ["LLC Formation", "C-Corp Formation"];
 
@@ -75,6 +80,8 @@ export default function CreateInvoice() {
     company_name: "", individual_name: "", email: "", phone: "",
     country: "", state_province: "", residential_address: "", referred_by: "", referral_partner_id: null as number | null, notes: "",
   });
+  const [docFiles, setDocFiles] = useState<DocFile[]>([]);
+  const docFileRef = useRef<HTMLInputElement>(null);
   const [partnerRates, setPartnerRates] = useState<PartnerServiceRate[]>([]);
   const [sendInvoiceOpen, setSendInvoiceOpen] = useState(false);
   const [sendInvoiceTab, setSendInvoiceTab] = useState("whatsapp");
@@ -139,16 +146,43 @@ export default function CreateInvoice() {
     return { price: Math.max(0, price - discountValue), original: price, label: `$${discountValue.toFixed(2)} partner discount` };
   };
 
+  const handleDocFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const newFiles: DocFile[] = Array.from(files).map(f => ({
+      file: f,
+      docName: f.name.replace(/\.[^/.]+$/, ""),
+    }));
+    setDocFiles(prev => [...prev, ...newFiles]);
+    if (docFileRef.current) docFileRef.current.value = "";
+  };
+
   const newCustomerMutation = useMutation({
     mutationFn: async (data: typeof newCustomerForm) => {
       const res = await apiRequest("POST", "/api/customers", data);
-      return res.json();
+      const customer = await res.json();
+
+      if (docFiles.length > 0) {
+        for (const df of docFiles) {
+          const formData = new FormData();
+          formData.append("file", df.file);
+          formData.append("document_name", df.docName || df.file.name);
+          const uploadRes = await authFetch(`/api/customers/${customer.id}/documents`, { method: "POST", body: formData });
+          if (!uploadRes.ok) {
+            const err = await uploadRes.json().catch(() => ({ message: "Upload failed" }));
+            console.error("Doc upload error:", err.message);
+          }
+        }
+      }
+
+      return customer;
     },
     onSuccess: (data: Customer) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setSelectedCustomer(data);
       setNewCustomerOpen(false);
       setNewCustomerForm({ company_name: "", individual_name: "", email: "", phone: "", country: "", state_province: "", residential_address: "", referred_by: "", referral_partner_id: null, notes: "" });
+      setDocFiles([]);
       if (data.referral_partner_id) {
         fetchPartnerRates(data.referral_partner_id);
       } else {
@@ -465,14 +499,57 @@ export default function CreateInvoice() {
             </CardContent>
           </Card>
 
-          <Dialog open={newCustomerOpen} onOpenChange={setNewCustomerOpen}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <Dialog open={newCustomerOpen} onOpenChange={(v) => { setNewCustomerOpen(v); if (!v) { setNewCustomerForm({ company_name: "", individual_name: "", email: "", phone: "", country: "", state_province: "", residential_address: "", referred_by: "", referral_partner_id: null, notes: "" }); setDocFiles([]); } }}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
               <DialogHeader><DialogTitle>Add New Customer</DialogTitle></DialogHeader>
               <CustomerFormFields form={newCustomerForm} onChange={setNewCustomerForm} testIdPrefix="new-customer" />
+
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4" />Verification Documents
+                    <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                  </Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => docFileRef.current?.click()}
+                    data-testid="button-add-doc-files"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />Add Files
+                  </Button>
+                  <input ref={docFileRef} type="file" multiple className="hidden" onChange={handleDocFileSelect} />
+                </div>
+
+                {docFiles.length > 0 && (
+                  <div className="space-y-2">
+                    {docFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2 rounded border">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <Input
+                          value={f.docName}
+                          onChange={(e) => setDocFiles(prev => prev.map((df, idx) => idx === i ? { ...df, docName: e.target.value } : df))}
+                          className="h-7 text-xs flex-1"
+                          placeholder="Document name (e.g. Passport)"
+                          data-testid={`input-doc-name-${i}`}
+                        />
+                        <span className="text-[10px] text-muted-foreground shrink-0">{(f.file.size / 1024).toFixed(0)} KB</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setDocFiles(prev => prev.filter((_, idx) => idx !== i))} data-testid={`button-remove-doc-${i}`}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">{docFiles.length} file(s) will be uploaded after customer is created</p>
+                  </div>
+                )}
+              </div>
+
               <Button
                 onClick={() => newCustomerMutation.mutate(newCustomerForm)}
                 disabled={newCustomerMutation.isPending || !newCustomerForm.individual_name || !newCustomerForm.email || !newCustomerForm.phone}
                 className="w-full"
+                data-testid="button-save-new-customer"
               >
                 {newCustomerMutation.isPending ? "Saving..." : "Save & Select Customer"}
               </Button>

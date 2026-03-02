@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -53,11 +53,32 @@ function getExpectedDigitCount(format: string, dialCode: string): number {
   return (placeholder.match(/X/g) || []).length;
 }
 
+function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void, active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const listener = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        handler();
+      }
+    };
+    document.addEventListener("mousedown", listener, true);
+    return () => document.removeEventListener("mousedown", listener, true);
+  }, [ref, handler, active]);
+}
+
 export default function CustomerFormFields({ form, onChange, testIdPrefix = "customer" }: CustomerFormFieldsProps) {
   const [countrySearch, setCountrySearch] = useState("");
   const [phoneCodeSearch, setPhoneCodeSearch] = useState("");
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
+  const countryRef = useRef<HTMLDivElement>(null);
+  const phoneRef = useRef<HTMLDivElement>(null);
+
+  const closeCountryDropdown = useCallback(() => { setShowCountryDropdown(false); setCountrySearch(""); }, []);
+  const closePhoneDropdown = useCallback(() => { setShowPhoneDropdown(false); setPhoneCodeSearch(""); }, []);
+
+  useClickOutside(countryRef, closeCountryDropdown, showCountryDropdown);
+  useClickOutside(phoneRef, closePhoneDropdown, showPhoneDropdown);
   const [selectedCountryCode, setSelectedCountryCode] = useState(() => {
     if (form.country) {
       const c = countries.find(c => c.name === form.country);
@@ -175,7 +196,7 @@ export default function CustomerFormFields({ form, onChange, testIdPrefix = "cus
         />
       </div>
 
-      <div className="relative">
+      <div className="relative" ref={countryRef}>
         <Label>Country of Citizenship</Label>
         <Input
           value={showCountryDropdown ? countrySearch : form.country}
@@ -208,12 +229,9 @@ export default function CustomerFormFields({ form, onChange, testIdPrefix = "cus
             )}
           </div>
         )}
-        {showCountryDropdown && (
-          <div className="fixed inset-0 z-40" onClick={() => { setShowCountryDropdown(false); setCountrySearch(""); }} />
-        )}
       </div>
 
-      <div className="relative">
+      <div className="relative" ref={phoneRef}>
         <Label>Personal Contact Number *</Label>
         <div className="flex gap-2">
           <div className="relative w-[220px] shrink-0">
@@ -248,9 +266,6 @@ export default function CustomerFormFields({ form, onChange, testIdPrefix = "cus
                   ))
                 )}
               </div>
-            )}
-            {showPhoneDropdown && (
-              <div className="fixed inset-0 z-40" onClick={() => { setShowPhoneDropdown(false); setPhoneCodeSearch(""); }} />
             )}
           </div>
           <div className="flex-1 flex items-center">
@@ -331,6 +346,10 @@ function ReferralPartnerField({ form, onChange, testIdPrefix }: { form: Customer
   const [searchResults, setSearchResults] = useState<ReferralPartner[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<ReferralPartner | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const referralRef = useRef<HTMLDivElement>(null);
+
+  const closeReferralDropdown = useCallback(() => { setShowReferralDropdown(false); setReferralSearch(""); }, []);
+  useClickOutside(referralRef, closeReferralDropdown, showReferralDropdown);
 
   useEffect(() => {
     if (form.referral_partner_id && !selectedPartner) {
@@ -377,14 +396,14 @@ function ReferralPartnerField({ form, onChange, testIdPrefix }: { form: Customer
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={referralRef}>
       <Label>Referred By</Label>
       {selectedPartner ? (
         <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
           <div className="flex-1 min-w-0">
             <span className="text-sm font-medium">{selectedPartner.full_name}</span>
-            <span className="text-xs text-muted-foreground ml-2">@{selectedPartner.username}</span>
-            <Badge variant="outline" className="ml-2 text-[10px] font-mono">{selectedPartner.referral_code}</Badge>
+            {selectedPartner.username && <span className="text-xs text-muted-foreground ml-2">@{selectedPartner.username}</span>}
+            {selectedPartner.referral_code && <Badge variant="outline" className="ml-2 text-[10px] font-mono">{selectedPartner.referral_code}</Badge>}
           </div>
           <button
             type="button"
@@ -431,15 +450,12 @@ function ReferralPartnerField({ form, onChange, testIdPrefix }: { form: Customer
                       <span className="font-medium">{p.full_name}</span>
                       {p.username && <span className="text-muted-foreground">@{p.username}</span>}
                       {p.referral_code && <Badge variant="outline" className="text-[10px] font-mono">{p.referral_code}</Badge>}
-                      <Badge variant="secondary" className="text-[10px] capitalize">{p._is_customer ? "customer" : p.type}</Badge>
+                      <Badge variant="secondary" className="text-[10px] capitalize">{p._is_customer ? "customer" : (p.type || "partner")}</Badge>
                     </div>
                   </button>
                 ))
               )}
             </div>
-          )}
-          {showReferralDropdown && (
-            <div className="fixed inset-0 z-40" onClick={() => { setShowReferralDropdown(false); setReferralSearch(""); }} />
           )}
         </>
       )}
