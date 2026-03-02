@@ -1,0 +1,85 @@
+I'm running a business named "Infinity Filer" in which I'm offering LLC formation, C-Corp formation, ITIN, Taxations, Trademarks, US Banking services, UK Ltd, UK Trademark services.
+
+I'm facing issue in managing all the data of customers, invoices, compliance reminders, Orders trackings.
+
+I want an advanced portal of admin to manage all the things seemlessly and must be able to manage and organize all details properly.
+
+In my operations, I noticed that LLC, C-corp has state specific packages and also some are fix charges that we can't control, and some charges are fixed. In my portal there should be a state specific (50 US States) packages including all the charges that are included.
+
+I want a portal that should have facility to Add services, remove services, along with State Specific packages or General Services packages.
+
+Also there should be a bundle package as well. I should be able to combine multiple services to make a bundle service.
+
+There should be an upload section where I could bulk update the packages as well.
+
+Also some customers ask for discount, so during invoicing, I should have access to update pricing or provide discount to specific customer without changing general structures.
+
+Also mention discounts on the invoices properly and make the record comprehensive and detailed to properly reflect all the things.
+
+Also I want professional dashboard, Orders, Customers, Invoices, Reports, Services, Reminders, Generals
+
+I don't want replit database at all and want to use my app purely on supabase database. here are supabase credentials:
+Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhqd2prYXZ1dGthZGp4aHhuZGt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjI2MTQsImV4cCI6MjA4NzY5ODYxNH0.JqfTzTCDH6Z99-N7wrZ8k-QGyhpo9CMgInsr-gsGie0
+URL: https://xjwjkavutkadjxhxndkt.supabase.co
+
+Transactional Pooler of PSQL: psql -h aws-1-ap-southeast-2.pooler.supabase.com -p 6543 -d postgres -U postgres.xjwjkavutkadjxhxndkt
+
+
+Following are the details of Supabase PSQL Connection String parameters:
+Host: aws-1-ap-southeast-2.pooler.supabase.com
+Port: 6543
+Database: postgres
+User: postgres. xjwjkavutkadjxhxndkt
+pool_mode:transaction
+
+Project DB Password: Sikander212345
+
+All the documents and files should be saved to Dropbox. Here’s Dropbox credentials:
+App key: vv6gypecbdftjhh
+App secret: 2fqacyemmxh58ch
+
+
+This project currently contain useless data, clean the current data and proceed with fresh database from scratch.
+
+Following are Infinity Details:
+Company Name: Infinity Filer
+Address: Zyarat Rd, Khanna Pull, Islamabad, Pakistan
+Contact Number: +923203682461
+Whatsapp Number: +923203682461
+Support Email: support@infinityfiler.com
+
+Payment Method:
+Meezan Bank Limited:
+Account Holder Name: ZARAR
+Account Number: 00300108188443
+IBAN: PK45MEZN0000300108188443
+
+Also for the reminder, I want to send reminders directly from admin panel which has due dates arrived and general promotional messages from my admin panel. So must add email SMTP service so that I could multiple emails smtp service and when sending reminders, I should be able to select email from where I'm sending emails.
+
+I’m attaching my LLC database record (Do not change anything in record and keep the same costing and everything)
+
+Instructions:
+Invoices: Make professional Invoice, all should be clickable, and open all the professional details of invoice, edit, update everything properly organized, and it should show Our company details, Customer details, Mark customer’s Company name, Individual Name, Phone number and email mandatory for invoice generation, and add a note for Payment Methods (Add bank Details) and it should be exportable in pdf. Generate auto Order Number with invoice Number as well. All the sections where Invoices are mentioned, must mention Company name, Individual name as well for identification. I must ask to select customer for invoice generation and non customer is selected, then we must add a customer first for invoice generation. Customer record must be provided to generate invoice. Also add Optional referral record (Name and company name) to record referral records. 
+
+In all the filters, it must be searchable through referral records so that I could know which person recommended how many times. 
+
+Orders: All the order must be mentioned with company name and Individual Name for proper identifications. As we click on Order, it should open that order details section. It should be a separate order page containing all the order details which packages we selected in the Invoice generation. It should contain Invoice details, Order progress section, Also notes section in which the admin should be able to add Note header and Description to keep track of all record with date. The documents section should contain all the documents with all types to keep order records.  The order page should contain order general informations, Customer information (Name, Company name, email, phone number, date of order etc). All the orders should be filterable by different features including state. It also show the referral records. Must add Documents section to properly organize all documents records and stored in Dropbox. During document upload with in the order, the naming of document should be provided for upload. Our provided name should be written in dropbox storage. 
+
+Customers: It should contain all the record of customers and if we click on customer, it should open all the related record of customers. All the customers should be filterable. 
+
+Reports: Reports should contain all the data record including everything. It should be exportable as well in excel and pdf as well. 
+
+Services: It should contain all the records of services and also I should be able to add and delete record of specific state, or general services. There should be an option to upload Bulk File for State specific Services. For example, For bulk upload, give a Template excel sheet that should contain all state package Columns and their finance sections (Like amazon do). And I should be able to upload only that specific template. If anything goes beyond that template, the package sheet should not be uploadable. Make the detailed template for state specific package including every cost separately and package description and notes properly. 
+
+Reminders: I will send state specific Annual report reminders (Based on Company formation date) and State Specific Annual report due date. It should be auto generated so that I could see who should be sent reminders. Also I will send Federal Reporting returns and tax submission reminders for Single member LLC, Multi-Member LLC (Partnerships) and C-Corps to submit their reporting returns on time. These reminders should be properly highlighted 2 months before their due dates.
+
+Generals: It should contain Our company general details like Company name, address, Phone Numbers, Payment Method, support emails etc.
+
+Send Emails: It should contain options to add multiple SMTP Accounts to connect multiple emails to send reminders and promotional emails from our admin panel. It should contain be able to select specific customers (Like state specifics, Service specifics, Specific dates or combination of different filters) or single customers to send reminders or promotional emails to keep customers engaged and tracked. 
+
+The email should be properly customizable either in HTML, or simple text, highlights, add documents, Also it should contain logo of infinity filer in specific way that emails look professional. Make professional email templates for each service reminders as well. 
+
+
+
+
+Logo is attached, Current Website code with Database is attached.

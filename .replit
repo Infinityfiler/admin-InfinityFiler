@@ -1,0 +1,53 @@
+modules = ["nodejs-20", "web"]
+run = "npm run dev"
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+
+[nix]
+channel = "stable-25_05"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[env]
+PORT = "5000"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["node", "./dist/index.cjs"]
+build = ["npm", "run", "build"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[userenv]
+
+[userenv.shared]
+SUPABASE_URL = "https://xjwjkavutkadjxhxndkt.supabase.co"
+SUPABASE_DB_HOST = "aws-1-ap-southeast-2.pooler.supabase.com"
+SUPABASE_DB_PORT = "6543"
+SUPABASE_DB_NAME = "postgres"
+SUPABASE_DB_USER = "postgres.xjwjkavutkadjxhxndkt"
+DROPBOX_APP_KEY = "vv6gypecbdftjhh"
+DROPBOX_APP_SECRET = "2fqacyemmxh58ch"
+
+[agent]
+expertMode = true
