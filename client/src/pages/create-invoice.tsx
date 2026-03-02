@@ -382,6 +382,7 @@ export default function CreateInvoice() {
       setCreatedInvoiceNumber(data.invoice_number || `INV-${data.id}`);
       setSendInvoiceTab("whatsapp");
       setPortalLink(null);
+      setSendTarget(referralPartner ? "partner" : "customer");
       setSendInvoiceOpen(true);
 
       if (selectedCustomer) {
@@ -901,11 +902,11 @@ export default function CreateInvoice() {
       </Dialog>
 
       <Dialog open={sendInvoiceOpen} onOpenChange={(open) => { if (!open) handleSkipSend(); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Send Invoice {createdInvoiceNumber}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="overflow-y-auto flex-1 space-y-4 -mr-2 pr-2">
             <div className="p-3 rounded-md bg-accent/50 space-y-1">
               <p className="text-sm font-medium" data-testid="text-send-invoice-customer">{selectedCustomer?.individual_name} - {selectedCustomer?.company_name}</p>
               <p className="text-xs text-muted-foreground">{selectedCustomer?.email} | {selectedCustomer?.phone}</p>
