@@ -13,7 +13,7 @@ A full-stack business management admin portal secured behind Supabase Auth with 
 - **Backend**: Express.js (Node.js), TypeScript via `tsx`
 - **Database**: Supabase PostgreSQL — accessed via `@supabase/supabase-js` (service role key) and direct PostgreSQL for migrations
 - **Auth**: Supabase Auth with JWT validation, role-based access (admin/customer)
-- **Storage**: Dropbox integration for order document storage
+- **Storage**: Dropbox integration for order document storage (OAuth callback at `/api/dropbox/callback` — no auth middleware since it's a browser redirect from Dropbox)
 - **Security**: Helmet.js, express-rate-limit, RLS on all 24 tables
 
 ### Security Architecture

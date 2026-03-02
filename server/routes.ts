@@ -370,7 +370,7 @@ export async function registerRoutes(
       const docs = await storage.getCustomerDocuments(Number(req.params.customerId));
       const doc = docs.find(d => d.id === Number(req.params.docId));
       if (!doc) return res.status(404).json({ message: "Document not found" });
-      if (!doc.dropbox_path) return res.status(404).json({ message: "File not stored in Dropbox" });
+      if (!doc.dropbox_path) return res.status(404).json({ message: "File not available" });
 
       const { buffer, name } = await downloadFromDropbox(doc.dropbox_path);
       const ext = path.extname(doc.file_name || name);
@@ -390,7 +390,7 @@ export async function registerRoutes(
       const docs = await storage.getCustomerDocuments(Number(req.params.customerId));
       const doc = docs.find(d => d.id === Number(req.params.docId));
       if (!doc) return res.status(404).json({ message: "Document not found" });
-      if (!doc.dropbox_path) return res.status(404).json({ message: "File not stored in Dropbox" });
+      if (!doc.dropbox_path) return res.status(404).json({ message: "File not available" });
 
       const { buffer, name } = await downloadFromDropbox(doc.dropbox_path);
       const ext = path.extname(doc.file_name || name).toLowerCase();
@@ -1565,7 +1565,7 @@ export async function registerRoutes(
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 
-  app.get("/api/dropbox/callback", requireAdmin, async (req, res) => {
+  app.get("/api/dropbox/callback", async (req, res) => {
     try {
       const code = req.query.code as string;
       const state = req.query.state as string;
@@ -2191,7 +2191,7 @@ export async function registerRoutes(
       let finalDropboxPath = "";
       try {
         if (await isDropboxConnected()) {
-          finalDropboxPath = await uploadToDropbox(dropboxPath, file.buffer);
+          finalDropboxPath = (await uploadToDropbox(file.buffer, dropboxPath)).path;
         }
       } catch (e) {
         console.log("Dropbox upload skipped:", (e as Error).message);

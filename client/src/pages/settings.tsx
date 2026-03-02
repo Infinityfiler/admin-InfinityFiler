@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { authFetch } from "@/lib/auth";
 import {
   Save, Building2, CreditCard, Cloud, CloudOff, Link2, Unlink, Percent,
   Plus, Pencil, Trash2, ExternalLink, Landmark, GripVertical
@@ -151,7 +152,7 @@ export default function GeneralSettings() {
 
   const connectDropbox = async () => {
     try {
-      const res = await fetch("/api/dropbox/auth-url");
+      const res = await authFetch("/api/dropbox/auth-url");
       const { url } = await res.json();
       window.open(url, "dropbox-auth", "width=600,height=700");
     } catch {
