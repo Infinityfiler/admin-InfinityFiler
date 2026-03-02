@@ -606,6 +606,9 @@ export async function runMigrations() {
       );
 
       ALTER TABLE payment_proofs ENABLE ROW LEVEL SECURITY;
+
+      ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS original_price NUMERIC DEFAULT NULL;
+      ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS partner_discount_label TEXT DEFAULT '';
     `);
 
     console.log("All tables created successfully, RLS enabled");

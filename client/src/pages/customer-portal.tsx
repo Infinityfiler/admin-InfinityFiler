@@ -1301,7 +1301,7 @@ function InvoiceDetailView({
           <td style="padding:12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#1f2937;">${esc(item.description)}</td>
           <td style="padding:12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280;text-align:center;">${esc(item.state) || "-"}</td>
           <td style="padding:12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#1f2937;text-align:center;">${item.quantity}</td>
-          <td style="padding:12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#1f2937;text-align:right;">$${Number(item.unit_price).toFixed(2)}</td>
+          <td style="padding:12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#1f2937;text-align:right;">$${Number(item.unit_price).toFixed(2)}${item.partner_discount_label && item.original_price != null ? `<div style="font-size:10px;margin-top:2px;"><span style="text-decoration:line-through;color:#9ca3af;">$${Number(item.original_price).toFixed(2)}</span> <span style="color:#059669;font-weight:600;">${esc(item.partner_discount_label)}</span></div>` : ""}</td>
           <td style="padding:12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#1f2937;text-align:right;font-weight:600;">$${Number(item.total).toFixed(2)}</td>
         </tr>
         ${includesHtml}
@@ -1678,7 +1678,15 @@ function InvoiceDetailView({
                       <td className="py-2 text-foreground">{item.description}</td>
                       <td className="py-2 text-center text-muted-foreground">{item.state || "-"}</td>
                       <td className="py-2 text-center text-foreground">{item.quantity}</td>
-                      <td className="py-2 text-right text-foreground">${Number(item.unit_price).toFixed(2)}</td>
+                      <td className="py-2 text-right text-foreground">
+                        ${Number(item.unit_price).toFixed(2)}
+                        {item.partner_discount_label && item.original_price != null && (
+                          <div className="flex items-center justify-end gap-1 mt-0.5">
+                            <span className="text-[10px] text-muted-foreground line-through">${Number(item.original_price).toFixed(2)}</span>
+                            <span className="text-[10px] text-emerald-600 font-medium">{item.partner_discount_label}</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="py-2 text-right font-medium text-foreground">${Number(item.total).toFixed(2)}</td>
                     </tr>
                     {item.includes && item.includes.length > 0 && (

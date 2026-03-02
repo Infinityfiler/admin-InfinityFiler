@@ -15,7 +15,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, ArrowLeft, Package, Search, UserPlus, Save } from "lucide-react";
-import type { Customer, Service, BundlePackage, BundleItem, Invoice, InvoiceItem, CompanySettings } from "@shared/schema";
+import type { Customer, Service, BundlePackage, BundleItem, Invoice, InvoiceItem, CompanySettings, PartnerServiceRate } from "@shared/schema";
 import CustomerFormFields from "@/components/customer-form-fields";
 
 const STATE_SPECIFIC_CATEGORIES = ["LLC Formation", "C-Corp Formation"];
@@ -37,6 +37,8 @@ interface LineItem {
   fromBundle?: string;
   currencyTax: boolean;
   llc_type: string;
+  original_price?: number;
+  partner_discount_label?: string;
 }
 
 function isLLCFormation(item: LineItem, services: Service[]): boolean {
@@ -77,6 +79,35 @@ export default function EditInvoice() {
     company_name: "", individual_name: "", email: "", phone: "",
     country: "", state_province: "", residential_address: "", referred_by: "", referral_partner_id: null as number | null, notes: "",
   });
+  const [partnerRates, setPartnerRates] = useState<PartnerServiceRate[]>([]);
+
+  const fetchPartnerRates = async (partnerId: number) => {
+    try {
+      const res = await authFetch(`/api/referral-partners/${partnerId}/service-rates`);
+      if (res.ok) setPartnerRates(await res.json());
+    } catch { setPartnerRates([]); }
+  };
+
+  useEffect(() => {
+    if (!initialized) return;
+    if (selectedCustomer?.referral_partner_id) {
+      fetchPartnerRates(selectedCustomer.referral_partner_id);
+    } else {
+      setPartnerRates([]);
+    }
+  }, [selectedCustomer?.id, initialized]);
+
+  const applyPartnerDiscount = (price: number, serviceId: number | null): { price: number; original: number; label: string } => {
+    if (!serviceId || partnerRates.length === 0) return { price, original: price, label: "" };
+    const rate = partnerRates.find(r => r.service_id === serviceId);
+    if (!rate || Number(rate.discount_value) === 0) return { price, original: price, label: "" };
+    const discountValue = Number(rate.discount_value);
+    if (rate.discount_type === "percentage") {
+      const discounted = price - (price * discountValue / 100);
+      return { price: Math.max(0, discounted), original: price, label: `${discountValue}% partner discount` };
+    }
+    return { price: Math.max(0, price - discountValue), original: price, label: `$${discountValue.toFixed(2)} partner discount` };
+  };
 
   useEffect(() => {
     if (initialized || !invoice || itemsLoading || customers.length === 0) return;
@@ -100,6 +131,8 @@ export default function EditInvoice() {
         includes: item.includes || [],
         currencyTax: item.currency_tax ?? true,
         llc_type: item.llc_type || "",
+        original_price: item.original_price != null ? Number(item.original_price) : undefined,
+        partner_discount_label: item.partner_discount_label || undefined,
       })));
     } else {
       setItems([{ description: "", state: "", quantity: 1, unit_price: 0, service_id: null, includes: [], currencyTax: true, llc_type: "" }]);
@@ -140,16 +173,19 @@ export default function EditInvoice() {
     const service = services.find(s => s.id === Number(serviceId));
     if (service) {
       const totalPrice = getServicePrice(service);
+      const { price, original, label } = applyPartnerDiscount(totalPrice, service.id);
       const updated = [...items];
       updated[index] = {
         description: `${service.name} - ${service.category}${service.state ? ` (${service.state})` : ""}`,
         state: service.state,
         quantity: 1,
-        unit_price: totalPrice,
+        unit_price: price,
         service_id: service.id,
         includes: service.includes || [],
         currencyTax: true,
         llc_type: "",
+        original_price: label ? original : undefined,
+        partner_discount_label: label || undefined,
       };
       setItems(updated);
     }
@@ -173,16 +209,19 @@ export default function EditInvoice() {
       if (bundle.discount_type === "per_service") {
         itemPrice = price - discount;
       }
+      const { price: finalPrice, original, label } = applyPartnerDiscount(itemPrice, bi.service_id);
       return {
         description: `${bi.service_name || service?.name || "Service"} - ${bi.service_category || service?.category || ""}${(bi.service_state || service?.state) ? ` (${bi.service_state || service?.state})` : ""}`,
         state: bi.service_state || service?.state || "",
         quantity: 1,
-        unit_price: itemPrice,
+        unit_price: finalPrice,
         service_id: bi.service_id,
         includes: service?.includes || [],
         fromBundle: bundle.name,
         currencyTax: true,
         llc_type: "",
+        original_price: label ? original : undefined,
+        partner_discount_label: label || undefined,
       };
     });
 
@@ -240,6 +279,8 @@ export default function EditInvoice() {
         includes: item.includes || [],
         currency_tax: item.currencyTax,
         llc_type: item.llc_type,
+        original_price: item.original_price ?? null,
+        partner_discount_label: item.partner_discount_label || "",
       }));
 
       let pkrData: any = { pkr_enabled: false, pkr_rate: 0, pkr_tax_rate: 0, pkr_amount: 0, pkr_tax_amount: 0, pkr_total: 0 };
@@ -370,7 +411,22 @@ export default function EditInvoice() {
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
                 <CardTitle>Line Items</CardTitle>
-                <Button size="sm" onClick={addItem}><Plus className="h-4 w-4 mr-1" />Add Item</Button>
+                <div className="flex items-center gap-2">
+                  {partnerRates.length > 0 && (
+                    <Button size="sm" variant="outline" className="text-green-700 border-green-300" data-testid="button-recalculate-discounts" onClick={() => {
+                      setItems(prev => prev.map(item => {
+                        if (!item.service_id) return item;
+                        const service = services.find(s => s.id === item.service_id);
+                        if (!service) return item;
+                        const basePrice = getServicePrice(service);
+                        const { price, original, label } = applyPartnerDiscount(basePrice, item.service_id);
+                        return { ...item, unit_price: price, original_price: label ? original : undefined, partner_discount_label: label || undefined };
+                      }));
+                      toast({ title: "Partner discounts recalculated" });
+                    }}>Recalculate Discounts</Button>
+                  )}
+                  <Button size="sm" onClick={addItem}><Plus className="h-4 w-4 mr-1" />Add Item</Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -417,7 +473,35 @@ export default function EditInvoice() {
                     </div>
                     <div>
                       <Label className="text-xs">Unit Price ($)</Label>
-                      <Input type="number" min={0} step="0.01" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))} />
+                      <Input type="number" min={0} step="0.01" value={item.unit_price} onChange={(e) => {
+                        const newPrice = Number(e.target.value);
+                        const updated = [...items];
+                        updated[index] = { ...updated[index], unit_price: newPrice };
+                        if (item.service_id && partnerRates.length > 0) {
+                          const rate = partnerRates.find(r => r.service_id === item.service_id);
+                          if (rate && Number(rate.discount_value) > 0) {
+                            const service = services.find(s => s.id === item.service_id);
+                            const basePrice = service ? getServicePrice(service) : (item.original_price || newPrice);
+                            const { price: discountedPrice, original, label } = applyPartnerDiscount(basePrice, item.service_id);
+                            if (newPrice !== discountedPrice) {
+                              updated[index].original_price = undefined;
+                              updated[index].partner_discount_label = undefined;
+                            } else {
+                              updated[index].original_price = original;
+                              updated[index].partner_discount_label = label;
+                            }
+                          }
+                        }
+                        setItems(updated);
+                      }} />
+                      {item.partner_discount_label && item.original_price !== undefined && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-[10px] text-muted-foreground line-through">${item.original_price.toFixed(2)}</span>
+                          <Badge variant="secondary" className="text-[10px]" data-testid={`badge-partner-discount-${index}`}>
+                            {item.partner_discount_label}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {isLLCFormation(item, services) && (
@@ -489,7 +573,8 @@ export default function EditInvoice() {
                       <p className="p-3 text-xs text-muted-foreground text-center">No services found</p>
                     ) : filteredServices.map(s => (
                       <div key={s.id} className="flex items-center justify-between px-3 py-2 hover:bg-accent/50 cursor-pointer" onClick={() => {
-                        const price = getServicePrice(s);
+                        const basePrice = getServicePrice(s);
+                        const { price, original, label } = applyPartnerDiscount(basePrice, s.id);
                         const newItem: LineItem = {
                           description: `${s.name} - ${s.category}${s.state ? ` (${s.state})` : ""}`,
                           state: s.state,
@@ -499,6 +584,8 @@ export default function EditInvoice() {
                           includes: s.includes || [],
                           currencyTax: true,
                           llc_type: "",
+                          original_price: label ? original : undefined,
+                          partner_discount_label: label || undefined,
                         };
                         const hasEmptyFirst = items.length === 1 && !items[0].description;
                         setItems(hasEmptyFirst ? [newItem] : [...items, newItem]);

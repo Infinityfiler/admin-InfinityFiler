@@ -339,6 +339,8 @@ export default function CreateInvoice() {
         includes: item.includes || [],
         currency_tax: item.currencyTax,
         llc_type: item.llc_type,
+        original_price: item.original_price ?? null,
+        partner_discount_label: item.partner_discount_label || "",
       }));
 
       let pkrData: any = { pkr_enabled: false, pkr_rate: 0, pkr_tax_rate: 0, pkr_amount: 0, pkr_tax_amount: 0, pkr_total: 0 };

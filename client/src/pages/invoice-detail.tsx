@@ -57,21 +57,29 @@ export default function InvoiceDetail() {
 
   const STATE_SPECIFIC_CATEGORIES = ["LLC Formation", "C-Corp Formation"];
   const getOriginalPrice = (item: InvoiceItem): { originalPrice: number; discountLabel: string } | null => {
-    if (partnerRates.length === 0 || !item.service_id) return null;
-    const rate = partnerRates.find(r => r.service_id === item.service_id);
-    if (!rate || Number(rate.discount_value) === 0) return null;
-    const service = allServices.find(s => s.id === item.service_id);
-    if (!service) return null;
-    let catalogPrice: number;
-    if (STATE_SPECIFIC_CATEGORIES.includes(service.category)) {
-      catalogPrice = Number(service.state_fee) + Number(service.agent_fee) + Number(service.unique_address) + Number(service.vyke_number) + Number(service.service_charges);
-    } else {
-      catalogPrice = Number(service.service_charges);
+    if (partnerRates.length > 0 && item.service_id) {
+      const rate = partnerRates.find(r => r.service_id === item.service_id);
+      if (rate && Number(rate.discount_value) > 0) {
+        const service = allServices.find(s => s.id === item.service_id);
+        if (service) {
+          let catalogPrice: number;
+          if (STATE_SPECIFIC_CATEGORIES.includes(service.category)) {
+            catalogPrice = Number(service.state_fee) + Number(service.agent_fee) + Number(service.unique_address) + Number(service.vyke_number) + Number(service.service_charges);
+          } else {
+            catalogPrice = Number(service.service_charges);
+          }
+          if (catalogPrice > Number(item.unit_price)) {
+            const discountValue = Number(rate.discount_value);
+            const label = rate.discount_type === "percentage" ? `${discountValue}% partner discount` : `$${discountValue.toFixed(2)} partner discount`;
+            return { originalPrice: catalogPrice, discountLabel: label };
+          }
+        }
+      }
     }
-    if (catalogPrice <= Number(item.unit_price)) return null;
-    const discountValue = Number(rate.discount_value);
-    const label = rate.discount_type === "percentage" ? `${discountValue}% partner discount` : `$${discountValue.toFixed(2)} partner discount`;
-    return { originalPrice: catalogPrice, discountLabel: label };
+    if (item.partner_discount_label && item.original_price != null) {
+      return { originalPrice: Number(item.original_price), discountLabel: item.partner_discount_label };
+    }
+    return null;
   };
 
   const [paymentOpen, setPaymentOpen] = useState(false);

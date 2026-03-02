@@ -114,7 +114,9 @@ Required secrets (set in Replit Secrets):
 - Dashboard with stats, auto-overdue marking, compliance sync
 - Customer management with referral tracking
 - Orders with services, documents, activity logs, compliance
-- Invoice creation with partner discount auto-application
+- Invoice creation with partner discount auto-application; discounts persisted in `invoice_items` (`original_price`, `partner_discount_label` columns)
+- Invoice editing with partner discount support: fetches partner rates, applies discounts on service selection, "Recalculate Discounts" button, discount info saved to DB
+- Customer portal shows per-item partner discount (original price struck through + discount label) on invoice detail and PDF export
 - Profit/Loss tracking per invoice (triggered on marking as paid)
 - Payment Proof system: customers upload proof via portal (Dropbox + WhatsApp), admin verifies/declines on invoice detail with full/partial payment recording
   - DB table: `payment_proofs` (invoice_id, customer_id, amount_claimed, file_name, dropbox_path, dropbox_view_link, status, admin_note)

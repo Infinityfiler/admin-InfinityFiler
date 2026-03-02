@@ -191,6 +191,8 @@ export interface InvoiceItem {
   includes: string[];
   currency_tax: boolean;
   llc_type: string;
+  original_price: number | null;
+  partner_discount_label: string;
 }
 
 export interface IncludeMeta {
