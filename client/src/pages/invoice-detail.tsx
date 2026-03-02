@@ -99,6 +99,7 @@ export default function InvoiceDetail() {
   const [shareEmailSubject, setShareEmailSubject] = useState("");
   const [shareEmailBody, setShareEmailBody] = useState("");
   const [shareSmtp, setShareSmtp] = useState<number>(0);
+  const [shareTarget, setShareTarget] = useState<"customer" | "partner">("customer");
 
   const { data: smtpAccounts = [] } = useQuery<SmtpAccount[]>({ queryKey: ["/api/smtp-accounts"] });
 
@@ -150,16 +151,40 @@ export default function InvoiceDetail() {
   const getPortalUrl = () => portalLink ? `${window.location.origin}/portal/${portalLink.token}` : "";
 
   const handleShareWhatsApp = () => {
-    const phone = invoice?.customer_phone?.replace(/[^0-9]/g, "") || "";
-    const whatsappPhone = phone.startsWith("0") ? "92" + phone.slice(1) : phone.startsWith("92") ? phone : phone;
     const portalUrl = getPortalUrl();
+    let phone = "";
+    let msg = "";
+
+    if (shareTarget === "partner" && referralPartner) {
+      phone = referralPartner.phone?.replace(/[^0-9]/g, "") || "";
+      msg = encodeURIComponent(
+        `Hi ${referralPartner.full_name},\n\n` +
+        `Invoice ${invoice?.invoice_number} for $${Number(invoice?.total || 0).toFixed(2)} is ready for your referred customer ${invoice?.customer_name || ""} (${invoice?.company_name || ""}).\n\n` +
+        `Customer Portal:\n${portalUrl}\n\n` +
+        `Thank you!\nInfinity Filer`
+      );
+    } else {
+      phone = invoice?.customer_phone?.replace(/[^0-9]/g, "") || "";
+      phone = phone.startsWith("0") ? "92" + phone.slice(1) : phone;
+      msg = encodeURIComponent(
+        `Hi ${invoice?.customer_name || ""},\n\n` +
+        `Here is your invoice ${invoice?.invoice_number} for $${Number(invoice?.total || 0).toFixed(2)}.\n\n` +
+        `View your invoices, orders & profile:\n${portalUrl}\n\n` +
+        `Thank you!\nInfinity Filer`
+      );
+    }
+    if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+  };
+
+  const openPartnerWhatsApp = () => {
+    if (!referralPartner?.phone) return;
+    const phone = referralPartner.phone.replace(/[^0-9]/g, "");
     const msg = encodeURIComponent(
-      `Hi ${invoice?.customer_name || ""},\n\n` +
-      `Here is your invoice ${invoice?.invoice_number} for $${Number(invoice?.total || 0).toFixed(2)}.\n\n` +
-      `View your invoices, orders & profile:\n${portalUrl}\n\n` +
-      `Thank you!\nInfinity Filer`
+      `Hi ${referralPartner.full_name},\n\n` +
+      `Regarding invoice ${invoice?.invoice_number || ""} for your referred customer ${invoice?.customer_name || ""} (${invoice?.company_name || ""}).\n\n` +
+      `Total: $${Number(invoice?.total || 0).toFixed(2)}\nStatus: ${invoice?.status || ""}`
     );
-    window.open(`https://wa.me/${whatsappPhone}?text=${msg}`, "_blank");
+    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
   };
 
   const currentRate = exchangeRate?.rate || 0;
@@ -754,6 +779,11 @@ export default function InvoiceDetail() {
           <Button variant="outline" onClick={() => portalLinkMutation.mutate()} disabled={portalLinkMutation.isPending} data-testid="button-share-invoice">
             <Share2 className="h-4 w-4 mr-2" />{portalLinkMutation.isPending ? "Loading..." : "Share"}
           </Button>
+          {referralPartner && referralPartner.phone && (
+            <Button variant="outline" className="text-green-700 border-green-300 hover:bg-green-50" onClick={openPartnerWhatsApp} data-testid="button-contact-partner">
+              <SiWhatsapp className="h-4 w-4 mr-2" />Contact Partner
+            </Button>
+          )}
           <Link href={`/invoices/${id}/edit`}><Button variant="outline"><Pencil className="h-4 w-4 mr-2" />Edit</Button></Link>
           <Button variant="secondary" onClick={exportPDF} data-testid="button-export-pdf"><Download className="h-4 w-4 mr-2" />PDF</Button>
         </div>
@@ -1405,7 +1435,37 @@ export default function InvoiceDetail() {
                 <span className="text-muted-foreground">Total</span>
                 <span className="font-bold">${Number(invoice?.total || 0).toFixed(2)}</span>
               </div>
+              {referralPartner && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Partner</span>
+                  <span className="font-medium">{referralPartner.full_name}</span>
+                </div>
+              )}
             </div>
+
+            {referralPartner && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">Share With</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={shareTarget === "customer" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShareTarget("customer")}
+                    data-testid="button-share-target-customer"
+                  >
+                    Customer
+                  </Button>
+                  <Button
+                    variant={shareTarget === "partner" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShareTarget("partner")}
+                    data-testid="button-share-target-partner"
+                  >
+                    Partner ({referralPartner.full_name})
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-xs font-semibold">Portal Link</Label>
@@ -1436,10 +1496,10 @@ export default function InvoiceDetail() {
               </TabsList>
               <TabsContent value="whatsapp" className="space-y-3 mt-3">
                 <p className="text-sm text-muted-foreground">
-                  Send invoice details and portal link via WhatsApp to {invoice?.customer_phone || "customer"}.
+                  Send invoice details and portal link via WhatsApp to {shareTarget === "partner" && referralPartner ? referralPartner.full_name : (invoice?.customer_phone || "customer")}.
                 </p>
                 <Button className="w-full" onClick={handleShareWhatsApp} data-testid="button-share-whatsapp-send">
-                  <SiWhatsapp className="h-4 w-4 mr-2" />Send via WhatsApp
+                  <SiWhatsapp className="h-4 w-4 mr-2" />Send via WhatsApp {shareTarget === "partner" ? "to Partner" : "to Customer"}
                 </Button>
               </TabsContent>
               <TabsContent value="email" className="space-y-3 mt-3">

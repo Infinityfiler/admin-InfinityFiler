@@ -22,7 +22,7 @@ import {
 import { SiWhatsapp } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { Order, OrderNote, OrderDocument, OrderActivityLog, CustomerDocument, Invoice, InvoiceItem, InvoicePayment, Customer, IncludeMeta, FormationDateEntry, ComplianceRecord, ComplianceDocument, ComplianceHistory, SmtpAccount, CustomerPortalLink } from "@shared/schema";
+import type { Order, OrderNote, OrderDocument, OrderActivityLog, CustomerDocument, Invoice, InvoiceItem, InvoicePayment, Customer, IncludeMeta, FormationDateEntry, ComplianceRecord, ComplianceDocument, ComplianceHistory, SmtpAccount, CustomerPortalLink, ReferralPartner } from "@shared/schema";
 import CustomerFormFields from "@/components/customer-form-fields";
 
 const WHATSAPP_NUMBER = "923203682461";
@@ -142,6 +142,7 @@ export default function OrderDetail() {
   const [shareEmailSubject, setShareEmailSubject] = useState("");
   const [shareEmailBody, setShareEmailBody] = useState("");
   const [shareSmtp, setShareSmtp] = useState<number>(0);
+  const [shareTarget, setShareTarget] = useState<"customer" | "partner">("customer");
 
   const { data: order, isLoading } = useQuery<Order>({ queryKey: [`/api/orders/${id}`], enabled: !!id });
   const { data: notes = [] } = useQuery<OrderNote[]>({ queryKey: [`/api/orders/${id}/notes`], enabled: !!id });
@@ -164,6 +165,10 @@ export default function OrderDetail() {
   const { data: customer } = useQuery<Customer>({
     queryKey: [`/api/customers/${order?.customer_id}`],
     enabled: !!order?.customer_id,
+  });
+  const { data: referralPartner } = useQuery<ReferralPartner>({
+    queryKey: [`/api/referral-partners/${customer?.referral_partner_id}`],
+    enabled: !!customer?.referral_partner_id,
   });
   const { data: activityLogs = [] } = useQuery<OrderActivityLog[]>({
     queryKey: [`/api/orders/${id}/activity-logs`],
@@ -314,16 +319,40 @@ export default function OrderDetail() {
   const getPortalUrl = () => portalLink ? `${window.location.origin}/portal/${portalLink.token}` : "";
 
   const handleShareWhatsApp = () => {
-    const phone = customer?.phone?.replace(/[^0-9]/g, "") || "";
-    const whatsappPhone = phone.startsWith("0") ? "92" + phone.slice(1) : phone.startsWith("92") ? phone : phone;
     const portalUrl = getPortalUrl();
+    let phone = "";
+    let msg = "";
+
+    if (shareTarget === "partner" && referralPartner) {
+      phone = referralPartner.phone?.replace(/[^0-9]/g, "") || "";
+      msg = encodeURIComponent(
+        `Hi ${referralPartner.full_name},\n\n` +
+        `Here is the customer portal link for your referred customer ${order?.customer_name || ""} (${order?.company_name || ""}):\n${portalUrl}\n\n` +
+        `Order: ${order?.order_number || ""}\nServices: ${order?.service_type?.replace(/\|/g, ", ") || ""}\n\n` +
+        `Thank you!\nInfinity Filer`
+      );
+    } else {
+      phone = customer?.phone?.replace(/[^0-9]/g, "") || "";
+      phone = phone.startsWith("0") ? "92" + phone.slice(1) : phone;
+      msg = encodeURIComponent(
+        `Hi ${order?.customer_name || ""},\n\n` +
+        `Here is your customer portal link:\n${portalUrl}\n\n` +
+        `You can view your orders, invoices & manage your profile.\n\n` +
+        `Thank you!\nInfinity Filer`
+      );
+    }
+    if (phone) window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+  };
+
+  const openPartnerWhatsApp = () => {
+    if (!referralPartner?.phone) return;
+    const phone = referralPartner.phone.replace(/[^0-9]/g, "");
     const msg = encodeURIComponent(
-      `Hi ${order?.customer_name || ""},\n\n` +
-      `Here is your customer portal link:\n${portalUrl}\n\n` +
-      `You can view your orders, invoices & manage your profile.\n\n` +
-      `Thank you!\nInfinity Filer`
+      `Hi ${referralPartner.full_name},\n\n` +
+      `Regarding order ${order?.order_number || ""} for your referred customer ${order?.customer_name || ""} (${order?.company_name || ""}).\n\n` +
+      `Services: ${order?.service_type?.replace(/\|/g, ", ") || ""}\nStatus: ${order?.status || ""}`
     );
-    window.open(`https://wa.me/${whatsappPhone}?text=${msg}`, "_blank");
+    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
   };
 
   const noteMutation = useMutation({
@@ -766,6 +795,11 @@ export default function OrderDetail() {
           <Button variant="outline" onClick={() => portalLinkMutation.mutate()} disabled={portalLinkMutation.isPending} data-testid="button-share-portal-link">
             <Share2 className="h-4 w-4 mr-2" />{portalLinkMutation.isPending ? "Loading..." : "Share Portal Link"}
           </Button>
+          {referralPartner && referralPartner.phone && (
+            <Button variant="outline" className="text-green-700 border-green-300 hover:bg-green-50" onClick={openPartnerWhatsApp} data-testid="button-contact-partner">
+              <SiWhatsapp className="h-4 w-4 mr-2" />Contact Partner
+            </Button>
+          )}
           <Select value={order.status} onValueChange={(val) => updateMutation.mutate({ status: val })}>
             <SelectTrigger className="w-[160px]" data-testid="select-order-status-update"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -1815,7 +1849,37 @@ export default function OrderDetail() {
                 <span className="text-muted-foreground">Company</span>
                 <span className="font-medium">{order?.company_name}</span>
               </div>
+              {referralPartner && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Partner</span>
+                  <span className="font-medium">{referralPartner.full_name}</span>
+                </div>
+              )}
             </div>
+
+            {referralPartner && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">Share With</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={shareTarget === "customer" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShareTarget("customer")}
+                    data-testid="button-order-share-target-customer"
+                  >
+                    Customer
+                  </Button>
+                  <Button
+                    variant={shareTarget === "partner" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShareTarget("partner")}
+                    data-testid="button-order-share-target-partner"
+                  >
+                    Partner ({referralPartner.full_name})
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-xs font-semibold">Portal Link</Label>
@@ -1846,10 +1910,10 @@ export default function OrderDetail() {
               </TabsList>
               <TabsContent value="whatsapp" className="space-y-3 mt-3">
                 <p className="text-sm text-muted-foreground">
-                  Send portal link via WhatsApp to {customer?.phone || "customer"}.
+                  Send portal link via WhatsApp to {shareTarget === "partner" && referralPartner ? referralPartner.full_name : (customer?.phone || "customer")}.
                 </p>
                 <Button className="w-full" onClick={handleShareWhatsApp} data-testid="button-order-share-whatsapp-send">
-                  <SiWhatsapp className="h-4 w-4 mr-2" />Send via WhatsApp
+                  <SiWhatsapp className="h-4 w-4 mr-2" />Send via WhatsApp {shareTarget === "partner" ? "to Partner" : "to Customer"}
                 </Button>
               </TabsContent>
               <TabsContent value="email" className="space-y-3 mt-3">

@@ -15,7 +15,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, ArrowLeft, Package, Search, UserPlus, Copy, Send, MessageSquare, Mail, ExternalLink, ShieldCheck, FileText, X } from "lucide-react";
-import type { Customer, Service, BundlePackage, BundleItem, CompanySettings, PartnerServiceRate, CustomerPortalLink, SmtpAccount } from "@shared/schema";
+import type { Customer, Service, BundlePackage, BundleItem, CompanySettings, PartnerServiceRate, CustomerPortalLink, SmtpAccount, ReferralPartner } from "@shared/schema";
+import { SiWhatsapp } from "react-icons/si";
 import { Link } from "wouter";
 import CustomerFormFields from "@/components/customer-form-fields";
 
@@ -83,8 +84,10 @@ export default function CreateInvoice() {
   const [docFiles, setDocFiles] = useState<DocFile[]>([]);
   const docFileRef = useRef<HTMLInputElement>(null);
   const [partnerRates, setPartnerRates] = useState<PartnerServiceRate[]>([]);
+  const [referralPartner, setReferralPartner] = useState<ReferralPartner | null>(null);
   const [sendInvoiceOpen, setSendInvoiceOpen] = useState(false);
   const [sendInvoiceTab, setSendInvoiceTab] = useState("whatsapp");
+  const [sendTarget, setSendTarget] = useState<"customer" | "partner">("customer");
   const [createdInvoiceId, setCreatedInvoiceId] = useState<number | null>(null);
   const [createdInvoiceNumber, setCreatedInvoiceNumber] = useState("");
   const [portalLink, setPortalLink] = useState<CustomerPortalLink | null>(null);
@@ -132,6 +135,11 @@ export default function CreateInvoice() {
         setPartnerRates(rates);
       }
     } catch { setPartnerRates([]); }
+    try {
+      const pRes = await authFetch(`/api/referral-partners/${partnerId}`);
+      if (pRes.ok) setReferralPartner(await pRes.json());
+      else setReferralPartner(null);
+    } catch { setReferralPartner(null); }
   };
 
   const applyPartnerDiscount = (price: number, serviceId: number | null): { price: number; original: number; label: string } => {
@@ -398,16 +406,29 @@ export default function CreateInvoice() {
   });
 
   const handleSendWhatsApp = () => {
-    if (!selectedCustomer || !portalLink) return;
-    const phone = selectedCustomer.phone?.replace(/[^0-9]/g, "") || "";
+    if (!portalLink) return;
     const portalUrl = getPortalUrl(portalLink.token);
-    const message = encodeURIComponent(
-      `Hello ${selectedCustomer.individual_name},\n\n` +
-      `Your invoice ${createdInvoiceNumber} for $${total.toFixed(2)} has been generated.\n\n` +
-      `View your invoice and orders through your portal:\n${portalUrl}\n\n` +
-      `Thank you,\nInfinity Filer`
-    );
-    window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+    let phone = "";
+    let message = "";
+
+    if (sendTarget === "partner" && referralPartner) {
+      phone = referralPartner.phone?.replace(/[^0-9]/g, "") || "";
+      message = encodeURIComponent(
+        `Hi ${referralPartner.full_name},\n\n` +
+        `A new invoice ${createdInvoiceNumber} for $${total.toFixed(2)} has been generated for your referred customer ${selectedCustomer?.individual_name || ""} (${selectedCustomer?.company_name || ""}).\n\n` +
+        `Customer Portal:\n${portalUrl}\n\n` +
+        `Thank you,\nInfinity Filer`
+      );
+    } else if (selectedCustomer) {
+      phone = selectedCustomer.phone?.replace(/[^0-9]/g, "") || "";
+      message = encodeURIComponent(
+        `Hello ${selectedCustomer.individual_name},\n\n` +
+        `Your invoice ${createdInvoiceNumber} for $${total.toFixed(2)} has been generated.\n\n` +
+        `View your invoice and orders through your portal:\n${portalUrl}\n\n` +
+        `Thank you,\nInfinity Filer`
+      );
+    }
+    if (phone) window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
     navigate(`/invoices/${createdInvoiceId}`);
   };
 
@@ -466,6 +487,7 @@ export default function CreateInvoice() {
                     fetchPartnerRates(cust.referral_partner_id);
                   } else {
                     setPartnerRates([]);
+                    setReferralPartner(null);
                   }
                 }}
               >
@@ -886,7 +908,34 @@ export default function CreateInvoice() {
               <p className="text-sm font-medium" data-testid="text-send-invoice-customer">{selectedCustomer?.individual_name} - {selectedCustomer?.company_name}</p>
               <p className="text-xs text-muted-foreground">{selectedCustomer?.email} | {selectedCustomer?.phone}</p>
               <p className="text-sm font-semibold" data-testid="text-send-invoice-total">Total: ${total.toFixed(2)}</p>
+              {referralPartner && (
+                <p className="text-xs text-muted-foreground">Referred by: {referralPartner.full_name} ({referralPartner.phone})</p>
+              )}
             </div>
+
+            {referralPartner && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">Send To</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={sendTarget === "customer" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSendTarget("customer")}
+                    data-testid="button-send-target-customer"
+                  >
+                    Customer
+                  </Button>
+                  <Button
+                    variant={sendTarget === "partner" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSendTarget("partner")}
+                    data-testid="button-send-target-partner"
+                  >
+                    Partner ({referralPartner.full_name})
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {portalLinkLoading ? (
               <div className="flex items-center gap-2 p-3 rounded-md border">
@@ -934,9 +983,12 @@ export default function CreateInvoice() {
               </TabsList>
               <TabsContent value="whatsapp" className="mt-3 space-y-3">
                 <div className="p-3 rounded-md border space-y-2">
-                  <Label className="text-xs text-muted-foreground">Message Preview</Label>
+                  <Label className="text-xs text-muted-foreground">Message Preview {sendTarget === "partner" && referralPartner ? `(to ${referralPartner.full_name})` : `(to ${selectedCustomer?.individual_name || "customer"})`}</Label>
                   <p className="text-xs whitespace-pre-line" data-testid="text-whatsapp-preview">
-                    {`Hello ${selectedCustomer?.individual_name || ""},\n\nYour invoice ${createdInvoiceNumber} for $${total.toFixed(2)} has been generated.\n\nView your invoice and orders through your portal:\n${portalLink ? getPortalUrl(portalLink.token) : "Loading..."}\n\nThank you,\nInfinity Filer`}
+                    {sendTarget === "partner" && referralPartner
+                      ? `Hi ${referralPartner.full_name},\n\nA new invoice ${createdInvoiceNumber} for $${total.toFixed(2)} has been generated for your referred customer ${selectedCustomer?.individual_name || ""} (${selectedCustomer?.company_name || ""}).\n\nCustomer Portal:\n${portalLink ? getPortalUrl(portalLink.token) : "Loading..."}\n\nThank you,\nInfinity Filer`
+                      : `Hello ${selectedCustomer?.individual_name || ""},\n\nYour invoice ${createdInvoiceNumber} for $${total.toFixed(2)} has been generated.\n\nView your invoice and orders through your portal:\n${portalLink ? getPortalUrl(portalLink.token) : "Loading..."}\n\nThank you,\nInfinity Filer`
+                    }
                   </p>
                 </div>
                 <Button
@@ -945,7 +997,7 @@ export default function CreateInvoice() {
                   disabled={!portalLink || portalLinkLoading}
                   data-testid="button-send-whatsapp"
                 >
-                  <Send className="h-4 w-4 mr-2" />Send via WhatsApp
+                  <SiWhatsapp className="h-4 w-4 mr-2" />Send via WhatsApp {sendTarget === "partner" ? "to Partner" : "to Customer"}
                 </Button>
               </TabsContent>
               <TabsContent value="email" className="mt-3 space-y-3">
