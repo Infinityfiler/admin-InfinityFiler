@@ -920,7 +920,7 @@ export default function CreateInvoice() {
               <p className="text-xs text-muted-foreground">{selectedCustomer?.email} | {selectedCustomer?.phone}</p>
               <p className="text-sm font-semibold" data-testid="text-send-invoice-total">Total: ${total.toFixed(2)}</p>
               {referralPartner && (
-                <p className="text-xs text-muted-foreground">Referred by: {referralPartner.full_name} ({referralPartner.phone})</p>
+                <p className="text-xs text-muted-foreground">Referred by: {referralPartner.full_name}{referralPartner.company_name ? ` — ${referralPartner.company_name}` : ""} ({referralPartner.phone})</p>
               )}
             </div>
 

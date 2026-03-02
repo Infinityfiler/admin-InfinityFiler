@@ -207,7 +207,7 @@ export class SupabaseStorage implements IStorage {
     if (input.referral_partner_id) {
       await this.incrementPartnerReferralCount(input.referral_partner_id);
     } else if (input.referred_by) {
-      await this.autoCreatePartnerFromReferral(input.referred_by, data.id);
+      await this.linkExistingPartnerFromReferral(input.referred_by, data.id);
     }
 
     return data;
@@ -248,7 +248,7 @@ export class SupabaseStorage implements IStorage {
     }
   }
 
-  private async autoCreatePartnerFromReferral(referredBy: string, newCustomerId: number): Promise<void> {
+  private async linkExistingPartnerFromReferral(referredBy: string, newCustomerId: number): Promise<void> {
     const allCustomers = await this.getCustomers();
     const referrer = allCustomers.find(c =>
       c.individual_name.toLowerCase() === referredBy.toLowerCase() ||
@@ -263,21 +263,6 @@ export class SupabaseStorage implements IStorage {
         total_referrals: (existing.total_referrals || 0) + 1,
       }).eq("id", existing.id);
       await supabase.from("customers").update({ referral_partner_id: existing.id }).eq("id", newCustomerId);
-    } else {
-      const partnerUsername = referrer.referral_username || await this.generateUniqueCustomerUsername(referrer.individual_name);
-      const partner = await this.createReferralPartner({
-        customer_id: referrer.id,
-        username: partnerUsername,
-        full_name: referrer.individual_name,
-        email: referrer.email,
-        phone: referrer.phone,
-        company_name: referrer.company_name,
-        type: "customer",
-        notes: "Auto-created from customer referral",
-        is_active: true,
-      });
-      await supabase.from("referral_partners").update({ total_referrals: 1 }).eq("id", partner.id);
-      await supabase.from("customers").update({ referral_partner_id: partner.id }).eq("id", newCustomerId);
     }
   }
 
