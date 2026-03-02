@@ -522,59 +522,61 @@ export default function CreateInvoice() {
           </Card>
 
           <Dialog open={newCustomerOpen} onOpenChange={(v) => { setNewCustomerOpen(v); if (!v) { setNewCustomerForm({ company_name: "", individual_name: "", email: "", phone: "", country: "", state_province: "", residential_address: "", referred_by: "", referral_partner_id: null, notes: "" }); setDocFiles([]); } }}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+            <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden" onInteractOutside={(e) => e.preventDefault()}>
               <DialogHeader><DialogTitle>Add New Customer</DialogTitle></DialogHeader>
-              <CustomerFormFields form={newCustomerForm} onChange={setNewCustomerForm} testIdPrefix="new-customer" />
+              <div className="overflow-y-auto flex-1 space-y-4 -mr-2 pr-2">
+                <CustomerFormFields form={newCustomerForm} onChange={setNewCustomerForm} testIdPrefix="new-customer" />
 
-              <div className="space-y-3 pt-2 border-t">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm flex items-center gap-1.5">
-                    <ShieldCheck className="h-4 w-4" />Verification Documents
-                    <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
-                  </Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-7"
-                    onClick={() => docFileRef.current?.click()}
-                    data-testid="button-add-doc-files"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />Add Files
-                  </Button>
-                  <input ref={docFileRef} type="file" multiple className="hidden" onChange={handleDocFileSelect} />
+                <div className="space-y-3 pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-1.5">
+                      <ShieldCheck className="h-4 w-4" />Verification Documents
+                      <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                    </Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => docFileRef.current?.click()}
+                      data-testid="button-add-doc-files"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />Add Files
+                    </Button>
+                    <input ref={docFileRef} type="file" multiple className="hidden" onChange={handleDocFileSelect} />
+                  </div>
+
+                  {docFiles.length > 0 && (
+                    <div className="space-y-2">
+                      {docFiles.map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 p-2 rounded border">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <Input
+                            value={f.docName}
+                            onChange={(e) => setDocFiles(prev => prev.map((df, idx) => idx === i ? { ...df, docName: e.target.value } : df))}
+                            className="h-7 text-xs flex-1"
+                            placeholder="Document name (e.g. Passport)"
+                            data-testid={`input-doc-name-${i}`}
+                          />
+                          <span className="text-[10px] text-muted-foreground shrink-0">{(f.file.size / 1024).toFixed(0)} KB</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setDocFiles(prev => prev.filter((_, idx) => idx !== i))} data-testid={`button-remove-doc-${i}`}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground">{docFiles.length} file(s) will be uploaded after customer is created</p>
+                    </div>
+                  )}
                 </div>
 
-                {docFiles.length > 0 && (
-                  <div className="space-y-2">
-                    {docFiles.map((f, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2 rounded border">
-                        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <Input
-                          value={f.docName}
-                          onChange={(e) => setDocFiles(prev => prev.map((df, idx) => idx === i ? { ...df, docName: e.target.value } : df))}
-                          className="h-7 text-xs flex-1"
-                          placeholder="Document name (e.g. Passport)"
-                          data-testid={`input-doc-name-${i}`}
-                        />
-                        <span className="text-[10px] text-muted-foreground shrink-0">{(f.file.size / 1024).toFixed(0)} KB</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setDocFiles(prev => prev.filter((_, idx) => idx !== i))} data-testid={`button-remove-doc-${i}`}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                    <p className="text-xs text-muted-foreground">{docFiles.length} file(s) will be uploaded after customer is created</p>
-                  </div>
-                )}
+                <Button
+                  onClick={() => newCustomerMutation.mutate(newCustomerForm)}
+                  disabled={newCustomerMutation.isPending || !newCustomerForm.individual_name || !newCustomerForm.email || !newCustomerForm.phone}
+                  className="w-full"
+                  data-testid="button-save-new-customer"
+                >
+                  {newCustomerMutation.isPending ? "Saving..." : "Save & Select Customer"}
+                </Button>
               </div>
-
-              <Button
-                onClick={() => newCustomerMutation.mutate(newCustomerForm)}
-                disabled={newCustomerMutation.isPending || !newCustomerForm.individual_name || !newCustomerForm.email || !newCustomerForm.phone}
-                className="w-full"
-                data-testid="button-save-new-customer"
-              >
-                {newCustomerMutation.isPending ? "Saving..." : "Save & Select Customer"}
-              </Button>
             </DialogContent>
           </Dialog>
 

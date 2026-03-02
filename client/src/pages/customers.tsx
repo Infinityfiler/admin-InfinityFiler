@@ -99,57 +99,59 @@ export default function Customers() {
           <DialogTrigger asChild>
             <Button data-testid="button-add-customer"><Plus className="h-4 w-4 mr-2" />Add Customer</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
             <DialogHeader><DialogTitle>Add New Customer</DialogTitle></DialogHeader>
-            <CustomerFormFields form={form} onChange={setForm} testIdPrefix="customer" />
+            <div className="overflow-y-auto flex-1 space-y-4 -mr-2 pr-2">
+              <CustomerFormFields form={form} onChange={setForm} testIdPrefix="customer" />
 
-            <div className="space-y-3 pt-2 border-t">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4" />Verification Documents
-                  <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
-                </Label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-7"
-                  onClick={() => docFileRef.current?.click()}
-                >
-                  <Plus className="h-3 w-3 mr-1" />Add Files
-                </Button>
-                <input ref={docFileRef} type="file" multiple className="hidden" onChange={handleDocFileSelect} />
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4" />Verification Documents
+                    <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                  </Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => docFileRef.current?.click()}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />Add Files
+                  </Button>
+                  <input ref={docFileRef} type="file" multiple className="hidden" onChange={handleDocFileSelect} />
+                </div>
+
+                {docFiles.length > 0 && (
+                  <div className="space-y-2">
+                    {docFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2 rounded border">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <Input
+                          value={f.docName}
+                          onChange={(e) => setDocFiles(prev => prev.map((df, idx) => idx === i ? { ...df, docName: e.target.value } : df))}
+                          className="h-7 text-xs flex-1"
+                          placeholder="Document name (e.g. Passport)"
+                        />
+                        <span className="text-[10px] text-muted-foreground shrink-0">{(f.file.size / 1024).toFixed(0)} KB</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setDocFiles(prev => prev.filter((_, idx) => idx !== i))}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">{docFiles.length} file(s) will be uploaded after customer is created</p>
+                  </div>
+                )}
               </div>
 
-              {docFiles.length > 0 && (
-                <div className="space-y-2">
-                  {docFiles.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2 rounded border">
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <Input
-                        value={f.docName}
-                        onChange={(e) => setDocFiles(prev => prev.map((df, idx) => idx === i ? { ...df, docName: e.target.value } : df))}
-                        className="h-7 text-xs flex-1"
-                        placeholder="Document name (e.g. Passport)"
-                      />
-                      <span className="text-[10px] text-muted-foreground shrink-0">{(f.file.size / 1024).toFixed(0)} KB</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setDocFiles(prev => prev.filter((_, idx) => idx !== i))}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground">{docFiles.length} file(s) will be uploaded after customer is created</p>
-                </div>
-              )}
+              <Button
+                onClick={() => createMutation.mutate(form)}
+                disabled={createMutation.isPending || !form.individual_name || !form.email || !form.phone}
+                className="w-full"
+                data-testid="button-save-customer"
+              >
+                {createMutation.isPending ? "Saving..." : "Save Customer"}
+              </Button>
             </div>
-
-            <Button
-              onClick={() => createMutation.mutate(form)}
-              disabled={createMutation.isPending || !form.individual_name || !form.email || !form.phone}
-              className="w-full"
-              data-testid="button-save-customer"
-            >
-              {createMutation.isPending ? "Saving..." : "Save Customer"}
-            </Button>
           </DialogContent>
         </Dialog>
       </div>

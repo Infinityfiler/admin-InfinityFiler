@@ -351,9 +351,10 @@ export default function EditInvoice() {
           </Card>
 
           <Dialog open={newCustomerOpen} onOpenChange={setNewCustomerOpen}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
               <DialogHeader><DialogTitle>Add New Customer</DialogTitle></DialogHeader>
-              <CustomerFormFields form={newCustomerForm} onChange={setNewCustomerForm} testIdPrefix="edit-new-customer" />
+              <div className="overflow-y-auto flex-1 space-y-4 -mr-2 pr-2">
+                <CustomerFormFields form={newCustomerForm} onChange={setNewCustomerForm} testIdPrefix="edit-new-customer" />
                 <Button
                   onClick={() => newCustomerMutation.mutate(newCustomerForm)}
                   disabled={newCustomerMutation.isPending || !newCustomerForm.individual_name || !newCustomerForm.email || !newCustomerForm.phone}
@@ -361,6 +362,7 @@ export default function EditInvoice() {
                 >
                   {newCustomerMutation.isPending ? "Saving..." : "Save & Select Customer"}
                 </Button>
+              </div>
             </DialogContent>
           </Dialog>
 
