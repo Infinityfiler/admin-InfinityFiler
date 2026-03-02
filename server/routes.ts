@@ -1909,12 +1909,21 @@ export async function registerRoutes(
       const settings = await storage.getCompanySettings();
 
       let referralName = "";
+      let referralPartnerInfo: { full_name: string; phone: string; email: string; referral_code: string } | null = null;
       try {
         const customer = await storage.getCustomer(link.customer_id);
         if (customer) {
           if (customer.referral_partner_id) {
             const partner = await storage.getReferralPartner(customer.referral_partner_id);
-            if (partner) referralName = partner.full_name;
+            if (partner) {
+              referralName = partner.full_name;
+              referralPartnerInfo = {
+                full_name: partner.full_name,
+                phone: partner.phone || "",
+                email: partner.email || "",
+                referral_code: partner.referral_code || "",
+              };
+            }
           }
           if (!referralName && customer.referred_by) {
             referralName = customer.referred_by;
@@ -1922,7 +1931,7 @@ export async function registerRoutes(
         }
       } catch {}
 
-      res.json({ invoice, items, payments, settings, referralName });
+      res.json({ invoice, items, payments, settings, referralName, referralPartnerInfo });
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 

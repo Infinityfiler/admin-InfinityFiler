@@ -585,8 +585,15 @@ export default function InvoiceDetail() {
         <div class="meta-sub">${esc(invoice.customer_name)}</div>
         <div class="meta-sub">${esc(invoice.customer_email)}</div>
         <div class="meta-sub">${esc(invoice.customer_phone)}</div>
-        ${referralName ? `<div class="meta-sub" style="margin-top:4px;"><strong>Referred By:</strong> ${esc(referralName)}</div>` : ""}
       </div>
+      ${referralPartner || referralName ? `
+      <div class="meta-col">
+        <div class="meta-label">Referred By</div>
+        <div class="meta-value">${esc(referralPartner?.full_name || referralName)}</div>
+        ${referralPartner?.phone ? `<div class="meta-sub">${esc(referralPartner.phone)}</div>` : ""}
+        ${referralPartner?.email ? `<div class="meta-sub">${esc(referralPartner.email)}</div>` : ""}
+        ${referralPartner?.referral_code ? `<div class="meta-sub">Code: ${esc(referralPartner.referral_code)}</div>` : ""}
+      </div>` : ""}
       <div class="meta-col right">
         <div class="date-row"><span class="date-label">Invoice Date:</span> ${new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
         ${invoice.due_date ? `<div class="date-row"><span class="date-label">Due Date:</span> ${invoice.due_date}</div>` : ""}
@@ -860,19 +867,23 @@ export default function InvoiceDetail() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+          <div className={`grid gap-6 pt-2 ${referralPartner || referralName ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2"}`}>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">Bill To</p>
               <p className="font-semibold text-foreground">{invoice.company_name}</p>
               <p className="text-sm text-foreground">{invoice.customer_name}</p>
               <p className="text-sm text-muted-foreground">{invoice.customer_email}</p>
               <p className="text-sm text-muted-foreground">{invoice.customer_phone}</p>
-              {referralName && (
-                <p className="text-sm text-muted-foreground mt-1" data-testid="text-invoice-referral">
-                  <span className="font-semibold text-foreground">Referred By:</span> {referralName}
-                </p>
-              )}
             </div>
+            {(referralPartner || referralName) && (
+              <div data-testid="text-invoice-referral">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">Referred By</p>
+                <p className="font-semibold text-foreground">{referralPartner?.full_name || referralName}</p>
+                {referralPartner?.phone && <p className="text-sm text-muted-foreground">{referralPartner.phone}</p>}
+                {referralPartner?.email && <p className="text-sm text-muted-foreground">{referralPartner.email}</p>}
+                {referralPartner?.referral_code && <p className="text-sm text-muted-foreground">Code: {referralPartner.referral_code}</p>}
+              </div>
+            )}
             <div className="text-right space-y-1">
               <p className="text-sm text-muted-foreground"><span className="font-semibold text-foreground">Invoice Date:</span> {new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
               {invoice.due_date && <p className="text-sm text-muted-foreground"><span className="font-semibold text-foreground">Due Date:</span> {invoice.due_date}</p>}

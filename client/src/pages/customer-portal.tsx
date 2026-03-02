@@ -1017,6 +1017,7 @@ interface InvoiceDetailData {
   payments: InvoicePayment[];
   settings: CompanySettings | null;
   referralName?: string;
+  referralPartnerInfo?: { full_name: string; phone: string; email: string; referral_code: string } | null;
 }
 
 function InvoicesTab({
@@ -1198,7 +1199,7 @@ function InvoiceDetailView({
   onNavigateToOrder?: (orderId: number) => void;
 }) {
   const { toast } = useToast();
-  const { invoice, items, payments, settings, referralName } = data;
+  const { invoice, items, payments, settings, referralName, referralPartnerInfo } = data;
   const matchedOrder = orders.find(o => o.order_number === invoice.order_number);
   const amountPaid = Number(invoice.amount_paid || 0);
   const totalDue = Number(invoice.total);
@@ -1429,8 +1430,15 @@ function InvoiceDetailView({
         <div class="meta-sub">${esc(invoice.customer_name)}</div>
         <div class="meta-sub">${esc(invoice.customer_email)}</div>
         <div class="meta-sub">${esc(invoice.customer_phone)}</div>
-        ${referralName ? `<div class="meta-sub" style="margin-top:6px;"><span style="color:#9ca3af;font-weight:600;">Referred By:</span> ${esc(referralName)}</div>` : ""}
       </div>
+      ${referralPartnerInfo || referralName ? `
+      <div class="meta-col">
+        <div class="meta-label">Referred By</div>
+        <div class="meta-value">${esc(referralPartnerInfo?.full_name || referralName || "")}</div>
+        ${referralPartnerInfo?.phone ? `<div class="meta-sub">${esc(referralPartnerInfo.phone)}</div>` : ""}
+        ${referralPartnerInfo?.email ? `<div class="meta-sub">${esc(referralPartnerInfo.email)}</div>` : ""}
+        ${referralPartnerInfo?.referral_code ? `<div class="meta-sub">Code: ${esc(referralPartnerInfo.referral_code)}</div>` : ""}
+      </div>` : ""}
       <div class="meta-col right">
         ${invoice.order_number ? `<div class="date-row"><span class="date-label">Order:</span> ${esc(invoice.order_number)}</div>` : ""}
         <div class="date-row"><span class="date-label">Invoice Date:</span> ${new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
@@ -1608,29 +1616,46 @@ function InvoiceDetailView({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-4 sm:p-6">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-2">Bill To</p>
-          <p className="font-semibold text-foreground" data-testid="text-detail-customer">{invoice.customer_name}</p>
-          {invoice.company_name && <p className="text-sm text-muted-foreground">{invoice.company_name}</p>}
-          {invoice.customer_email && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-              <Mail className="h-3 w-3" /> {invoice.customer_email}
-            </p>
-          )}
-          {invoice.customer_phone && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1">
-              <Phone className="h-3 w-3" /> {invoice.customer_phone}
-            </p>
-          )}
-          {referralName && (
-            <p className="text-sm text-muted-foreground mt-2">
-              <span className="text-muted-foreground">Referred By: </span>
-              <span className="font-medium text-foreground">{referralName}</span>
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <div className={`grid gap-4 ${referralPartnerInfo || referralName ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-2">Bill To</p>
+            <p className="font-semibold text-foreground" data-testid="text-detail-customer">{invoice.customer_name}</p>
+            {invoice.company_name && <p className="text-sm text-muted-foreground">{invoice.company_name}</p>}
+            {invoice.customer_email && (
+              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                <Mail className="h-3 w-3" /> {invoice.customer_email}
+              </p>
+            )}
+            {invoice.customer_phone && (
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Phone className="h-3 w-3" /> {invoice.customer_phone}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        {(referralPartnerInfo || referralName) && (
+          <Card>
+            <CardContent className="p-4 sm:p-6">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-2">Referred By</p>
+              <p className="font-semibold text-foreground">{referralPartnerInfo?.full_name || referralName}</p>
+              {referralPartnerInfo?.phone && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                  <Phone className="h-3 w-3" /> {referralPartnerInfo.phone}
+                </p>
+              )}
+              {referralPartnerInfo?.email && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Mail className="h-3 w-3" /> {referralPartnerInfo.email}
+                </p>
+              )}
+              {referralPartnerInfo?.referral_code && (
+                <p className="text-sm text-muted-foreground mt-1">Code: {referralPartnerInfo.referral_code}</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <Card>
         <CardContent className="p-4 sm:p-6">
