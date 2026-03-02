@@ -1858,7 +1858,21 @@ export async function registerRoutes(
       const payments = await storage.getInvoicePayments(invoice.id);
       const settings = await storage.getCompanySettings();
 
-      res.json({ invoice, items, payments, settings });
+      let referralName = "";
+      try {
+        const customer = await storage.getCustomer(link.customer_id);
+        if (customer) {
+          if (customer.referral_partner_id) {
+            const partner = await storage.getReferralPartner(customer.referral_partner_id);
+            if (partner) referralName = partner.full_name;
+          }
+          if (!referralName && customer.referred_by) {
+            referralName = customer.referred_by;
+          }
+        }
+      } catch {}
+
+      res.json({ invoice, items, payments, settings, referralName });
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 

@@ -105,6 +105,8 @@ export default function CustomerPortal() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [pendingInvoiceId, setPendingInvoiceId] = useState<number | null>(null);
+  const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
   const [profileForm, setProfileForm] = useState({
     company_name: "", individual_name: "", email: "", phone: "",
     country: "", state_province: "", residential_address: "",
@@ -273,7 +275,17 @@ export default function CustomerPortal() {
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
         {activeTab === "orders" && (
-          <OrdersTab orders={orders} loading={ordersLoading} token={token} />
+          <OrdersTab
+            orders={orders}
+            loading={ordersLoading}
+            token={token}
+            pendingOrderId={pendingOrderId}
+            clearPendingOrderId={() => setPendingOrderId(null)}
+            onNavigateToInvoice={(invoiceId) => {
+              setActiveTab("invoices");
+              setPendingInvoiceId(invoiceId);
+            }}
+          />
         )}
         {activeTab === "invoices" && (
           <InvoicesTab
@@ -282,6 +294,13 @@ export default function CustomerPortal() {
             paymentMethods={portalData.paymentMethods}
             token={token}
             portalData={portalData}
+            orders={orders}
+            pendingInvoiceId={pendingInvoiceId}
+            clearPendingInvoiceId={() => setPendingInvoiceId(null)}
+            onNavigateToOrder={(orderId) => {
+              setActiveTab("orders");
+              setPendingOrderId(orderId);
+            }}
           />
         )}
         {activeTab === "profile" && (
@@ -327,7 +346,7 @@ interface OrderDetailData {
   activityLogs: OrderActivityLog[];
 }
 
-function OrdersTab({ orders, loading, token }: { orders: Order[]; loading: boolean; token: string }) {
+function OrdersTab({ orders, loading, token, onNavigateToInvoice, pendingOrderId, clearPendingOrderId }: { orders: Order[]; loading: boolean; token: string; onNavigateToInvoice?: (invoiceId: number) => void; pendingOrderId?: number | null; clearPendingOrderId?: () => void }) {
   const { toast } = useToast();
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [detailData, setDetailData] = useState<OrderDetailData | null>(null);
@@ -350,6 +369,13 @@ function OrdersTab({ orders, loading, token }: { orders: Order[]; loading: boole
     }
     setDetailLoading(false);
   };
+
+  useEffect(() => {
+    if (pendingOrderId && pendingOrderId !== selectedOrderId) {
+      fetchOrderDetail(pendingOrderId);
+      if (clearPendingOrderId) clearPendingOrderId();
+    }
+  }, [pendingOrderId]);
 
   const handleBack = () => {
     setSelectedOrderId(null);
@@ -375,6 +401,7 @@ function OrdersTab({ orders, loading, token }: { orders: Order[]; loading: boole
           token={token}
           onBack={handleBack}
           onRefetch={() => fetchOrderDetail(selectedOrderId)}
+          onNavigateToInvoice={onNavigateToInvoice}
         />
       );
     }
@@ -481,11 +508,13 @@ function OrderDetailView({
   token,
   onBack,
   onRefetch,
+  onNavigateToInvoice,
 }: {
   data: OrderDetailData;
   token: string;
   onBack: () => void;
   onRefetch: () => void;
+  onNavigateToInvoice?: (invoiceId: number) => void;
 }) {
   const { toast } = useToast();
   const { order, invoice, invoiceItems, documents, activityLogs } = data;
@@ -610,6 +639,28 @@ function OrderDetailView({
                 {new Date(order.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
               </span>
             </div>
+            {order.invoice_number && invoice && (
+              <div>
+                <span className="text-muted-foreground">Invoice: </span>
+                {onNavigateToInvoice && invoice.id ? (
+                  <button
+                    className="text-primary hover:underline font-medium"
+                    onClick={() => onNavigateToInvoice(invoice.id)}
+                    data-testid="link-order-to-invoice"
+                  >
+                    {order.invoice_number}
+                  </button>
+                ) : (
+                  <span className="text-foreground">{order.invoice_number}</span>
+                )}
+              </div>
+            )}
+            {order.referral_name && (
+              <div>
+                <span className="text-muted-foreground">Referred By: </span>
+                <span className="text-foreground">{order.referral_name}</span>
+              </div>
+            )}
           </div>
           {allIncludes.length > 0 && (
             <div className="mt-4">
@@ -936,6 +987,7 @@ interface InvoiceDetailData {
   items: InvoiceItem[];
   payments: InvoicePayment[];
   settings: CompanySettings | null;
+  referralName?: string;
 }
 
 function InvoicesTab({
@@ -944,12 +996,20 @@ function InvoicesTab({
   paymentMethods,
   token,
   portalData,
+  orders,
+  pendingInvoiceId,
+  clearPendingInvoiceId,
+  onNavigateToOrder,
 }: {
   invoices: PortalInvoice[];
   loading: boolean;
   paymentMethods: PaymentMethod[];
   token: string;
   portalData: PortalData;
+  orders: Order[];
+  pendingInvoiceId?: number | null;
+  clearPendingInvoiceId?: () => void;
+  onNavigateToOrder?: (orderId: number) => void;
 }) {
   const { toast } = useToast();
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
@@ -974,6 +1034,13 @@ function InvoicesTab({
     setDetailLoading(false);
   };
 
+  useEffect(() => {
+    if (pendingInvoiceId && pendingInvoiceId !== selectedInvoiceId) {
+      fetchInvoiceDetail(pendingInvoiceId);
+      if (clearPendingInvoiceId) clearPendingInvoiceId();
+    }
+  }, [pendingInvoiceId]);
+
   const handleBack = () => {
     setSelectedInvoiceId(null);
     setDetailData(null);
@@ -997,7 +1064,9 @@ function InvoicesTab({
           paymentMethods={paymentMethods}
           portalData={portalData}
           token={token}
+          orders={orders}
           onBack={handleBack}
+          onNavigateToOrder={onNavigateToOrder}
         />
       );
     }
@@ -1087,16 +1156,21 @@ function InvoiceDetailView({
   paymentMethods,
   portalData,
   token,
+  orders,
   onBack,
+  onNavigateToOrder,
 }: {
   data: InvoiceDetailData;
   paymentMethods: PaymentMethod[];
   portalData: PortalData;
   token: string;
+  orders: Order[];
   onBack: () => void;
+  onNavigateToOrder?: (orderId: number) => void;
 }) {
   const { toast } = useToast();
-  const { invoice, items, payments, settings } = data;
+  const { invoice, items, payments, settings, referralName } = data;
+  const matchedOrder = orders.find(o => o.order_number === invoice.order_number);
   const amountPaid = Number(invoice.amount_paid || 0);
   const totalDue = Number(invoice.total);
   const remaining = Math.max(0, totalDue - amountPaid);
@@ -1326,8 +1400,10 @@ function InvoiceDetailView({
         <div class="meta-sub">${esc(invoice.customer_name)}</div>
         <div class="meta-sub">${esc(invoice.customer_email)}</div>
         <div class="meta-sub">${esc(invoice.customer_phone)}</div>
+        ${referralName ? `<div class="meta-sub" style="margin-top:6px;"><span style="color:#9ca3af;font-weight:600;">Referred By:</span> ${esc(referralName)}</div>` : ""}
       </div>
       <div class="meta-col right">
+        ${invoice.order_number ? `<div class="date-row"><span class="date-label">Order:</span> ${esc(invoice.order_number)}</div>` : ""}
         <div class="date-row"><span class="date-label">Invoice Date:</span> ${new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
         ${invoice.due_date ? `<div class="date-row"><span class="date-label">Due Date:</span> ${invoice.due_date}</div>` : ""}
       </div>
@@ -1473,6 +1549,22 @@ function InvoiceDetailView({
               <p className="text-xl font-bold text-foreground" data-testid="text-detail-invoice-number">
                 {invoice.invoice_number}
               </p>
+              {invoice.order_number && (
+                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                  <span>Order:</span>
+                  {onNavigateToOrder && matchedOrder ? (
+                    <button
+                      className="text-primary hover:underline font-medium"
+                      onClick={() => onNavigateToOrder(matchedOrder.id)}
+                      data-testid="link-invoice-to-order"
+                    >
+                      {invoice.order_number}
+                    </button>
+                  ) : (
+                    <span className="text-foreground font-medium">{invoice.order_number}</span>
+                  )}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground mt-1">
                 {new Date(invoice.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
               </p>
@@ -1500,6 +1592,12 @@ function InvoiceDetailView({
           {invoice.customer_phone && (
             <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Phone className="h-3 w-3" /> {invoice.customer_phone}
+            </p>
+          )}
+          {referralName && (
+            <p className="text-sm text-muted-foreground mt-2">
+              <span className="text-muted-foreground">Referred By: </span>
+              <span className="font-medium text-foreground">{referralName}</span>
             </p>
           )}
         </CardContent>
