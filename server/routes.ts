@@ -757,6 +757,13 @@ export async function registerRoutes(
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 
+  app.get("/api/chats/unread-counts", requireAdmin, async (req, res) => {
+    try {
+      const counts = await storage.getUnreadChatCounts("admin");
+      res.json(counts);
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
   app.post("/api/orders/:id/chats/read", requireAdmin, async (req, res) => {
     try {
       await storage.markChatsAsRead(Number(req.params.id), "admin");

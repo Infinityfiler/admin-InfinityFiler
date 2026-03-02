@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, Eye, X, Filter, Archive } from "lucide-react";
+import { Search, Eye, X, Filter, Archive, MessageSquare } from "lucide-react";
 import type { Order } from "@shared/schema";
 
 type OrderWithInvoice = Order & { invoice_status: string; all_services: string[]; all_categories: string[]; llc_types: Record<string, string> };
@@ -51,6 +51,10 @@ export default function Orders() {
   const [viewMode, setViewMode] = useState<"active" | "archived">("active");
 
   const { data: orders = [], isLoading } = useQuery<OrderWithInvoice[]>({ queryKey: ["/api/orders"] });
+  const { data: unreadCounts = {} } = useQuery<Record<string, number>>({
+    queryKey: ["/api/chats/unread-counts"],
+    refetchInterval: 15000,
+  });
 
   const referrals = useMemo(() => {
     const set = new Set(orders.map(o => o.referral_name).filter(Boolean));
@@ -334,7 +338,15 @@ export default function Orders() {
                           )}
                         </div>
                       </div>
-                      <Eye className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="flex items-center gap-2 shrink-0">
+                        {(unreadCounts[String(order.id)] || 0) > 0 && (
+                          <div className="flex items-center gap-1 bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse" data-testid={`badge-unread-chat-${order.id}`}>
+                            <MessageSquare className="h-3 w-3" />
+                            <span className="text-[10px] font-bold">{unreadCounts[String(order.id)]}</span>
+                          </div>
+                        )}
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
