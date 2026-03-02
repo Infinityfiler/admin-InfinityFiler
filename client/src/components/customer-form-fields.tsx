@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { countries } from "@/lib/countries";
+import { authFetch } from "@/lib/auth";
 import type { ReferralPartner } from "@shared/schema";
 
 interface CustomerFormData {
@@ -333,9 +334,10 @@ function ReferralPartnerField({ form, onChange, testIdPrefix }: { form: Customer
 
   useEffect(() => {
     if (form.referral_partner_id && !selectedPartner) {
-      fetch(`/api/referral-partners/${form.referral_partner_id}`)
+      authFetch(`/api/referral-partners/${form.referral_partner_id}`)
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setSelectedPartner(data); });
+        .then(data => { if (data) setSelectedPartner(data); })
+        .catch(() => {});
     }
   }, [form.referral_partner_id]);
 
@@ -346,10 +348,10 @@ function ReferralPartnerField({ form, onChange, testIdPrefix }: { form: Customer
     }
     setIsSearching(true);
     const timer = setTimeout(() => {
-      fetch(`/api/referral-partners/search?q=${encodeURIComponent(referralSearch)}`)
-        .then(r => r.json())
+      authFetch(`/api/referral-partners/search?q=${encodeURIComponent(referralSearch)}`)
+        .then(r => r.ok ? r.json() : [])
         .then(data => { setSearchResults(data); setIsSearching(false); })
-        .catch(() => setIsSearching(false));
+        .catch(() => { setSearchResults([]); setIsSearching(false); });
     }, 300);
     return () => clearTimeout(timer);
   }, [referralSearch]);

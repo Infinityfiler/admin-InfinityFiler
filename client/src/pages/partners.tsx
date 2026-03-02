@@ -16,7 +16,18 @@ import { authFetch } from "@/lib/auth";
 import { Plus, Search, Trash2, Edit, Copy, Users, ShoppingCart, Eye, Settings2 } from "lucide-react";
 import type { ReferralPartner, Customer, Order, PartnerServiceRate, Service } from "@shared/schema";
 
-const emptyForm = {
+type PartnerFormData = {
+  username: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  company_name: string;
+  type: string;
+  notes: string;
+  is_active: boolean;
+};
+
+const emptyForm: PartnerFormData = {
   username: "",
   full_name: "",
   email: "",
@@ -26,6 +37,115 @@ const emptyForm = {
   notes: "",
   is_active: true,
 };
+
+function PartnerForm({ form, setForm, onSubmit, submitLabel, isPending, isEditing = false }: {
+  form: PartnerFormData;
+  setForm: (f: PartnerFormData) => void;
+  onSubmit: () => void;
+  submitLabel: string;
+  isPending: boolean;
+  isEditing?: boolean;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Username {isEditing ? "(locked)" : "*"}</Label>
+          <Input
+            value={form.username}
+            onChange={(e) => !isEditing && setForm({ ...form, username: e.target.value.replace(/\s/g, "").toLowerCase() })}
+            placeholder="unique_username"
+            data-testid="input-partner-username"
+            disabled={isEditing}
+            className={isEditing ? "bg-muted cursor-not-allowed" : ""}
+          />
+          <p className="text-xs text-muted-foreground mt-1">{isEditing ? "Auto-generated, cannot be changed" : "Must be unique, no spaces"}</p>
+        </div>
+        <div>
+          <Label>Full Name *</Label>
+          <Input
+            value={form.full_name}
+            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+            placeholder="Full name"
+            data-testid="input-partner-full_name"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Email</Label>
+          <Input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="Email address"
+            data-testid="input-partner-email"
+          />
+        </div>
+        <div>
+          <Label>Phone</Label>
+          <Input
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            placeholder="Phone number"
+            data-testid="input-partner-phone"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Company Name</Label>
+          <Input
+            value={form.company_name}
+            onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+            placeholder="Company (optional)"
+            data-testid="input-partner-company"
+          />
+        </div>
+        <div>
+          <Label>Type</Label>
+          <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+            <SelectTrigger data-testid="select-partner-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="individual">Individual</SelectItem>
+              <SelectItem value="agency">Agency</SelectItem>
+              <SelectItem value="business">Business</SelectItem>
+              <SelectItem value="affiliate">Affiliate</SelectItem>
+              <SelectItem value="customer">Customer</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.is_active}
+            onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+            className="rounded"
+            data-testid="input-partner-active"
+          />
+          <span className="text-sm">Active</span>
+        </label>
+      </div>
+      <div>
+        <Label>Notes</Label>
+        <textarea
+          className="w-full rounded-md border p-2 text-sm bg-background"
+          rows={3}
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          data-testid="input-partner-notes"
+        />
+      </div>
+      <Button onClick={onSubmit} disabled={isPending} className="w-full" data-testid="button-partner-submit">
+        {isPending ? "Saving..." : submitLabel}
+      </Button>
+    </div>
+  );
+}
 
 const emptyRateForm = {
   service_id: 0,
@@ -215,106 +335,6 @@ export default function Partners() {
     return type === "percentage" ? `${value}%` : `$${value.toFixed(2)}`;
   };
 
-  const PartnerForm = ({ onSubmit, submitLabel, isPending, isEditing = false }: { onSubmit: () => void; submitLabel: string; isPending: boolean; isEditing?: boolean }) => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Username {isEditing ? "(locked)" : "*"}</Label>
-          <Input
-            value={form.username}
-            onChange={(e) => !isEditing && setForm({ ...form, username: e.target.value.replace(/\s/g, "").toLowerCase() })}
-            placeholder="unique_username"
-            data-testid="input-partner-username"
-            disabled={isEditing}
-            className={isEditing ? "bg-muted cursor-not-allowed" : ""}
-          />
-          <p className="text-xs text-muted-foreground mt-1">{isEditing ? "Auto-generated, cannot be changed" : "Must be unique, no spaces"}</p>
-        </div>
-        <div>
-          <Label>Full Name *</Label>
-          <Input
-            value={form.full_name}
-            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-            placeholder="Full name"
-            data-testid="input-partner-full_name"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Email</Label>
-          <Input
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="Email address"
-            data-testid="input-partner-email"
-          />
-        </div>
-        <div>
-          <Label>Phone</Label>
-          <Input
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="Phone number"
-            data-testid="input-partner-phone"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Company Name</Label>
-          <Input
-            value={form.company_name}
-            onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-            placeholder="Company (optional)"
-            data-testid="input-partner-company"
-          />
-        </div>
-        <div>
-          <Label>Type</Label>
-          <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-            <SelectTrigger data-testid="select-partner-type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="individual">Individual</SelectItem>
-              <SelectItem value="agency">Agency</SelectItem>
-              <SelectItem value="business">Business</SelectItem>
-              <SelectItem value="affiliate">Affiliate</SelectItem>
-              <SelectItem value="customer">Customer</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.is_active}
-            onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-            className="rounded"
-            data-testid="input-partner-active"
-          />
-          <span className="text-sm">Active</span>
-        </label>
-      </div>
-      <div>
-        <Label>Notes</Label>
-        <textarea
-          className="w-full rounded-md border p-2 text-sm bg-background"
-          rows={3}
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          data-testid="input-partner-notes"
-        />
-      </div>
-      <Button onClick={onSubmit} disabled={isPending} className="w-full" data-testid="button-partner-submit">
-        {isPending ? "Saving..." : submitLabel}
-      </Button>
-    </div>
-  );
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -333,6 +353,8 @@ export default function Partners() {
               <DialogTitle>Add Referral Partner</DialogTitle>
             </DialogHeader>
             <PartnerForm
+              form={form}
+              setForm={setForm}
               onSubmit={() => createMutation.mutate(form)}
               submitLabel="Create Partner"
               isPending={createMutation.isPending}
@@ -465,6 +487,8 @@ export default function Partners() {
             <DialogTitle>Edit Referral Partner</DialogTitle>
           </DialogHeader>
           <PartnerForm
+            form={form}
+            setForm={setForm}
             onSubmit={() => editId && updateMutation.mutate({ id: editId, data: form })}
             submitLabel="Save Changes"
             isPending={updateMutation.isPending}
