@@ -137,6 +137,32 @@ function MiniChart({ data, dataKey, stroke, gradientId, gradientColor, yPrefix }
   );
 }
 
+function CustomersMiniChart({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-[10px] text-muted-foreground text-center py-4">No data</p>;
+  return (
+    <ResponsiveContainer width="100%" height={120}>
+      <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id="activeG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="leadsG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.5} />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 9 }} />
+        <Tooltip content={<CustomTooltip />} />
+        <Area type="monotone" dataKey="activeCustomers" name="Active" stroke="#10b981" fill="url(#activeG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+        <Area type="monotone" dataKey="leads" name="Leads" stroke="#f59e0b" fill="url(#leadsG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
 function RecentOrdersSection({ orders }: { orders: any[] }) {
   const ordersPagination = usePagination(orders, { defaultPageSize: 20 });
 
@@ -470,9 +496,12 @@ export default function Dashboard() {
               <div className="flex items-center gap-1.5 mb-1">
                 <Users className="h-3.5 w-3.5 text-amber-500" />
                 <span className="text-xs font-medium text-muted-foreground">Customers</span>
-                <span className="ml-auto text-sm font-bold text-foreground">{timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeLeads : 0}</span>
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-muted-foreground">Active</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeActive : 0}</span></span>
+                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-muted-foreground">Leads</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeLeads : 0}</span></span>
+                </div>
               </div>
-              <MiniChart data={timeSeriesData} dataKey="leads" stroke="#f59e0b" gradientId="leadsG" gradientColor="#f59e0b" />
+              <CustomersMiniChart data={timeSeriesData} />
             </CardContent>
           </Card>
         </div>

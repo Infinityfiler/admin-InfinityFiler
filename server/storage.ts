@@ -1331,10 +1331,10 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getDashboardChartData(startDate?: string, endDate?: string): Promise<any> {
-    let ordersQuery = supabase.from("orders").select("id, created_at, status").order("created_at", { ascending: true });
+    let ordersQuery = supabase.from("orders").select("id, created_at, status, customer_id").order("created_at", { ascending: true });
     let customersQuery = supabase.from("customers").select("id, created_at, source").order("created_at", { ascending: true });
     let profitQuery = supabase.from("profit_loss_entries").select("id, entry_date, total_profit, invoice_total, total_cost").order("entry_date", { ascending: true });
-    let invoicesQuery = supabase.from("invoices").select("id, created_at, total, amount_paid, status").order("created_at", { ascending: true });
+    let invoicesQuery = supabase.from("invoices").select("id, created_at, total, amount_paid, status, customer_id").order("created_at", { ascending: true });
 
     if (startDate) {
       ordersQuery = ordersQuery.gte("created_at", startDate);
@@ -1375,10 +1375,19 @@ export class SupabaseStorage implements IStorage {
       ordersByDate[d] = (ordersByDate[d] || 0) + 1;
     }
 
+    const customerIdsWithOrders = new Set(allOrders.map((o: any) => o.customer_id));
+    const customerIdsWithInvoices = new Set(allInvoices.map((inv: any) => inv.customer_id));
+    const activeCustomerIds = new Set([...customerIdsWithOrders, ...customerIdsWithInvoices]);
+
     const leadsByDate: Record<string, number> = {};
+    const activeByDate: Record<string, number> = {};
     for (const c of allCustomers) {
       const d = new Date(c.created_at).toISOString().split("T")[0];
-      leadsByDate[d] = (leadsByDate[d] || 0) + 1;
+      if (activeCustomerIds.has(c.id)) {
+        activeByDate[d] = (activeByDate[d] || 0) + 1;
+      } else {
+        leadsByDate[d] = (leadsByDate[d] || 0) + 1;
+      }
     }
 
     const profitsByDate: Record<string, { revenue: number; cost: number; profit: number }> = {};
@@ -1401,6 +1410,7 @@ export class SupabaseStorage implements IStorage {
     const allDates = new Set([
       ...Object.keys(ordersByDate),
       ...Object.keys(leadsByDate),
+      ...Object.keys(activeByDate),
       ...Object.keys(profitsByDate),
       ...Object.keys(revenueByDate),
     ]);
@@ -1408,16 +1418,19 @@ export class SupabaseStorage implements IStorage {
 
     let cumulativeOrders = 0;
     let cumulativeLeads = 0;
+    let cumulativeActive = 0;
     let cumulativeProfit = 0;
     let cumulativeRevenue = 0;
 
     const chartData = sortedDates.map(date => {
       const dayOrders = ordersByDate[date] || 0;
       const dayLeads = leadsByDate[date] || 0;
+      const dayActive = activeByDate[date] || 0;
       const dayProfit = profitsByDate[date]?.profit || 0;
       const dayRevenue = revenueByDate[date]?.invoiced || 0;
       cumulativeOrders += dayOrders;
       cumulativeLeads += dayLeads;
+      cumulativeActive += dayActive;
       cumulativeProfit += dayProfit;
       cumulativeRevenue += dayRevenue;
 
@@ -1427,6 +1440,8 @@ export class SupabaseStorage implements IStorage {
         cumulativeOrders,
         leads: dayLeads,
         cumulativeLeads,
+        activeCustomers: dayActive,
+        cumulativeActive,
         profit: Math.round(dayProfit * 100) / 100,
         cumulativeProfit: Math.round(cumulativeProfit * 100) / 100,
         revenue: Math.round(dayRevenue * 100) / 100,
