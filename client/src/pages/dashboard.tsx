@@ -154,7 +154,7 @@ function CustomersMiniChart({ data }: { data: any[] }) {
         </defs>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.5} />
         <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 9 }} interval="preserveStartEnd" />
-        <YAxis tick={{ fontSize: 9 }} />
+        <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
         <Tooltip content={<CustomTooltip />} />
         <Area type="monotone" dataKey="activeCustomers" name="Active" stroke="#10b981" fill="url(#activeG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
         <Area type="monotone" dataKey="leads" name="Leads" stroke="#f59e0b" fill="url(#leadsG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
@@ -184,7 +184,7 @@ function OrdersMiniChart({ data }: { data: any[] }) {
         </defs>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.5} />
         <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 9 }} interval="preserveStartEnd" />
-        <YAxis tick={{ fontSize: 9 }} />
+        <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
         <Tooltip content={<CustomTooltip />} />
         <Area type="monotone" dataKey="pendingOrders" name="Pending" stroke="#f59e0b" fill="url(#pendingOG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
         <Area type="monotone" dataKey="inProgressOrders" name="In Progress" stroke="#3b82f6" fill="url(#inProgressOG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
