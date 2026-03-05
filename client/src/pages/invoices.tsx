@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Eye, Archive } from "lucide-react";
 import type { Invoice } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 type InvoiceWithCategories = Invoice & { all_categories: string[] };
 
@@ -46,6 +48,8 @@ export default function Invoices() {
       return matchesSearch && matchesStatus && matchesCategory;
     });
   }, [invoices, search, statusFilter, categoryFilter, viewMode]);
+
+  const pagination = usePagination(filtered);
 
   const statusColors: Record<string, string> = {
     paid: "default",
@@ -136,7 +140,7 @@ export default function Invoices() {
         <Card><CardContent className="p-8 text-center text-muted-foreground">{viewMode === "archived" ? "No archived invoices" : "No invoices found"}</CardContent></Card>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((invoice) => (
+          {pagination.paginatedData.map((invoice) => (
             <Link key={invoice.id} href={`/invoices/${invoice.id}`}>
               <Card className="hover-elevate cursor-pointer">
                 <CardContent className="p-4">
@@ -165,6 +169,18 @@ export default function Invoices() {
           ))}
         </div>
       )}
+
+      <PaginationControls
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        pageSizeOptions={pagination.pageSizeOptions}
+        onPageChange={pagination.setPage}
+        onPageSizeChange={pagination.setPageSize}
+      />
     </div>
   );
 }

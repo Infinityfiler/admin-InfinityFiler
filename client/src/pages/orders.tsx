@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Search, Eye, X, Filter, Archive, MessageSquare } from "lucide-react";
 import type { Order } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 type OrderWithInvoice = Order & { invoice_status: string; all_services: string[]; all_categories: string[]; llc_types: Record<string, string> };
 
@@ -131,6 +133,19 @@ export default function Orders() {
       return matchesSearch && matchesOrderStatus && matchesInvoiceStatus && matchesReferral && matchesService && matchesState && matchesCategory;
     });
   }, [orders, search, orderStatus, invoiceStatus, referralFilter, serviceFilter, stateFilter, categoryFilter, viewMode]);
+
+  const {
+    paginatedData,
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    setPage,
+    setPageSize: handlePageSizeChange,
+    pageSizeOptions,
+  } = usePagination(filtered);
 
   return (
     <div className="p-6 space-y-4">
@@ -273,7 +288,7 @@ export default function Orders() {
         <Card><CardContent className="p-8 text-center text-muted-foreground">No orders found</CardContent></Card>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((order) => {
+          {paginatedData.map((order) => {
             const displayServices = order.all_services && order.all_services.length > 0
               ? order.all_services
               : order.service_type ? [order.service_type] : [];
@@ -355,6 +370,18 @@ export default function Orders() {
           })}
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        pageSizeOptions={pageSizeOptions}
+        onPageChange={setPage}
+        onPageSizeChange={handlePageSizeChange}
+      />
     </div>
   );
 }

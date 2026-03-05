@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Users, Link2, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ReferralPartner, Customer } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 export default function Referrals() {
   const { toast } = useToast();
@@ -43,6 +45,9 @@ export default function Referrals() {
     }
     return true;
   });
+
+  const partnersPagination = usePagination(partners);
+  const referralsPagination = usePagination(filtered);
 
   const activePartners = partners.filter(p => p.is_active);
   const totalReferred = referredCustomers.length;
@@ -121,7 +126,7 @@ export default function Referrals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {partners.map(p => {
+                {partnersPagination.paginatedData.map(p => {
                   const count = referredCustomers.filter(c => c.referral_partner_id === p.id).length;
                   return (
                     <TableRow key={p.id} data-testid={`row-partner-overview-${p.id}`}>
@@ -156,6 +161,17 @@ export default function Referrals() {
                 })}
               </TableBody>
             </Table>
+            <PaginationControls
+              page={partnersPagination.page}
+              pageSize={partnersPagination.pageSize}
+              totalPages={partnersPagination.totalPages}
+              totalItems={partnersPagination.totalItems}
+              startIndex={partnersPagination.startIndex}
+              endIndex={partnersPagination.endIndex}
+              pageSizeOptions={partnersPagination.pageSizeOptions}
+              onPageChange={partnersPagination.setPage}
+              onPageSizeChange={partnersPagination.setPageSize}
+            />
           </CardContent>
         </Card>
       )}
@@ -214,7 +230,7 @@ export default function Referrals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(c => (
+                {referralsPagination.paginatedData.map(c => (
                   <TableRow key={c.id} data-testid={`row-referral-${c.id}`}>
                     <TableCell>
                       <div>
@@ -249,6 +265,17 @@ export default function Referrals() {
                 ))}
               </TableBody>
             </Table>
+            <PaginationControls
+              page={referralsPagination.page}
+              pageSize={referralsPagination.pageSize}
+              totalPages={referralsPagination.totalPages}
+              totalItems={referralsPagination.totalItems}
+              startIndex={referralsPagination.startIndex}
+              endIndex={referralsPagination.endIndex}
+              pageSizeOptions={referralsPagination.pageSizeOptions}
+              onPageChange={referralsPagination.setPage}
+              onPageSizeChange={referralsPagination.setPageSize}
+            />
           </CardContent>
         </Card>
       )}

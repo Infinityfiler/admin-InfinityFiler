@@ -11,11 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/auth";
-import { Plus, Trash2, Search, Upload, Download, Package, Pencil, X, CheckSquare } from "lucide-react";
+import { Plus, Trash2, Search, Upload, Download, Package, Pencil, X, CheckSquare, ChevronDown, ChevronRight } from "lucide-react";
 import { US_STATES } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 import type { Service, BundlePackage } from "@shared/schema";
 
 const DEFAULT_CATEGORIES = ["LLC Formation", "C-Corp Formation", "ITIN", "Taxation", "Trademark", "US Banking", "UK Ltd", "UK Trademark"];
@@ -566,6 +569,20 @@ export default function Services() {
 
   const categories = [...new Set(services.map(s => s.category))];
 
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
+
+  const toggleExpand = (id: number) => {
+    setExpandedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const servicesPagination = usePagination(filtered);
+  const bundlesPagination = usePagination(bundles);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -922,12 +939,17 @@ export default function Services() {
                   {allFilteredSelected ? `All ${filtered.length} shown selected` : `Select all ${filtered.length} shown`}
                 </span>
               </div>
-              {filtered.map((service) => {
+              {servicesPagination.paginatedData.map((service) => {
                 const isStateSpecific = service.type === "state_specific";
                 const totalPkg = isStateSpecific
                   ? Number(service.state_fee) + Number(service.agent_fee) + Number(service.unique_address) + Number(service.vyke_number) + Number(service.service_charges)
                   : Number(service.service_charges);
                 const isSelected = selectedIds.has(service.id);
+                const hasDetails = (service.includes && service.includes.length > 0) ||
+                  (isStateSpecific && service.annual_report_deadline) ||
+                  (!isStateSpecific && service.additional_requirements) ||
+                  (!isStateSpecific && service.notes);
+                const isExpanded = expandedCards.has(service.id);
                 return (
                   <Card key={service.id} className={`hover-elevate transition-colors ${isSelected ? "border-primary/50 bg-primary/5" : ""}`}>
                     <CardContent className="p-4">
@@ -956,22 +978,34 @@ export default function Services() {
                               {service.timeframe && <span className="text-xs text-muted-foreground">Timeframe: {service.timeframe}</span>}
                             </div>
                           )}
-                          {isStateSpecific && service.annual_report_deadline && (
-                            <p className="text-xs text-muted-foreground mt-1">Annual Report: {service.annual_report_deadline} | Fee: ${Number(service.annual_report_fee).toFixed(2)}</p>
-                          )}
-                          {service.includes && service.includes.length > 0 && (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              <span className="text-xs font-medium text-muted-foreground">Includes:</span>
-                              {service.includes.map((inc, i) => (
-                                <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-accent">{inc}</span>
-                              ))}
-                            </div>
-                          )}
-                          {!isStateSpecific && service.additional_requirements && (
-                            <p className="text-xs text-muted-foreground mt-1">Requirements: {service.additional_requirements}</p>
-                          )}
-                          {!isStateSpecific && service.notes && (
-                            <p className="text-xs text-muted-foreground mt-0.5">Notes: {service.notes}</p>
+                          {hasDetails && (
+                            <Collapsible open={isExpanded} onOpenChange={() => toggleExpand(service.id)}>
+                              <CollapsibleTrigger asChild>
+                                <button className="flex items-center gap-1 mt-1 text-xs text-muted-foreground cursor-pointer" data-testid={`button-expand-service-${service.id}`}>
+                                  {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  <span>{isExpanded ? "Hide details" : "Show details"}</span>
+                                </button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                {isStateSpecific && service.annual_report_deadline && (
+                                  <p className="text-xs text-muted-foreground mt-1">Annual Report: {service.annual_report_deadline} | Fee: ${Number(service.annual_report_fee).toFixed(2)}</p>
+                                )}
+                                {service.includes && service.includes.length > 0 && (
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    <span className="text-xs font-medium text-muted-foreground">Includes:</span>
+                                    {service.includes.map((inc, i) => (
+                                      <span key={i} className="text-xs px-1.5 py-0.5 rounded bg-accent">{inc}</span>
+                                    ))}
+                                  </div>
+                                )}
+                                {!isStateSpecific && service.additional_requirements && (
+                                  <p className="text-xs text-muted-foreground mt-1">Requirements: {service.additional_requirements}</p>
+                                )}
+                                {!isStateSpecific && service.notes && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">Notes: {service.notes}</p>
+                                )}
+                              </CollapsibleContent>
+                            </Collapsible>
                           )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
@@ -987,6 +1021,17 @@ export default function Services() {
                   </Card>
                 );
               })}
+              <PaginationControls
+                page={servicesPagination.page}
+                pageSize={servicesPagination.pageSize}
+                totalPages={servicesPagination.totalPages}
+                totalItems={servicesPagination.totalItems}
+                startIndex={servicesPagination.startIndex}
+                endIndex={servicesPagination.endIndex}
+                pageSizeOptions={servicesPagination.pageSizeOptions}
+                onPageChange={servicesPagination.setPage}
+                onPageSizeChange={servicesPagination.setPageSize}
+              />
             </div>
           )}
         </TabsContent>
@@ -996,7 +1041,7 @@ export default function Services() {
             <Card><CardContent className="p-8 text-center text-muted-foreground">No bundles created yet</CardContent></Card>
           ) : (
             <div className="grid gap-3">
-              {bundles.map(bundle => (
+              {bundlesPagination.paginatedData.map(bundle => (
                 <Card key={bundle.id} className="hover-elevate" data-testid={`card-bundle-${bundle.id}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-4">
@@ -1027,6 +1072,17 @@ export default function Services() {
                   </CardContent>
                 </Card>
               ))}
+              <PaginationControls
+                page={bundlesPagination.page}
+                pageSize={bundlesPagination.pageSize}
+                totalPages={bundlesPagination.totalPages}
+                totalItems={bundlesPagination.totalItems}
+                startIndex={bundlesPagination.startIndex}
+                endIndex={bundlesPagination.endIndex}
+                pageSizeOptions={bundlesPagination.pageSizeOptions}
+                onPageChange={bundlesPagination.setPage}
+                onPageSizeChange={bundlesPagination.setPageSize}
+              />
             </div>
           )}
         </TabsContent>

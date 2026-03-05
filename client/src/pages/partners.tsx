@@ -16,6 +16,8 @@ import { authFetch } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Search, Trash2, Edit, Copy, Users, ShoppingCart, Eye, Settings2, FileText } from "lucide-react";
 import type { ReferralPartner, Customer, Order, PartnerServiceRate, Service } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 type PartnerFormData = {
   username: string;
@@ -340,6 +342,8 @@ export default function Partners() {
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  const pagination = usePagination(filtered);
+
   const partnerTypes = [...new Set(partners.map(p => p.type).filter(Boolean))];
 
   const totalReferrals = partners.length;
@@ -451,7 +455,7 @@ export default function Partners() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(partner => (
+          {pagination.paginatedData.map(partner => (
             <Card key={partner.id} className="hover:shadow-md transition-shadow" data-testid={`card-partner-${partner.id}`}>
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between mb-3">
@@ -498,6 +502,20 @@ export default function Partners() {
             </Card>
           ))}
         </div>
+      )}
+
+      {!isLoading && filtered.length > 0 && (
+        <PaginationControls
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          startIndex={pagination.startIndex}
+          endIndex={pagination.endIndex}
+          pageSizeOptions={pagination.pageSizeOptions}
+          onPageChange={pagination.setPage}
+          onPageSizeChange={pagination.setPageSize}
+        />
       )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

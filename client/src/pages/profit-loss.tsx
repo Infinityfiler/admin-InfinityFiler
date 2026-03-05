@@ -14,6 +14,8 @@ import {
   Search, X, Filter
 } from "lucide-react";
 import type { ProfitLossEntry, CompanySettings } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 interface PLSummary {
   totalRevenue: number;
@@ -449,6 +451,8 @@ export default function ProfitLoss() {
     w.onload = () => w.print();
   };
 
+  const entriesPagination = usePagination(sortedEntries);
+
   const SortHeader = ({ label, field, align = "right" }: { label: string; field: SortKey; align?: string }) => (
     <th
       className={`p-3 text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-primary/80 select-none ${align === "left" ? "text-left" : "text-right"}`}
@@ -828,7 +832,7 @@ export default function ProfitLoss() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedEntries.map((entry) => {
+                  {entriesPagination.paginatedData.map((entry) => {
                     const isExpanded = expandedRows.has(entry.id);
                     const breakdown = Array.isArray(entry.cost_breakdown) ? entry.cost_breakdown : [];
                     return (
@@ -916,6 +920,17 @@ export default function ProfitLoss() {
                   </tr>
                 </tbody>
               </table>
+              <PaginationControls
+                page={entriesPagination.page}
+                pageSize={entriesPagination.pageSize}
+                totalPages={entriesPagination.totalPages}
+                totalItems={entriesPagination.totalItems}
+                startIndex={entriesPagination.startIndex}
+                endIndex={entriesPagination.endIndex}
+                pageSizeOptions={entriesPagination.pageSizeOptions}
+                onPageChange={entriesPagination.setPage}
+                onPageSizeChange={entriesPagination.setPageSize}
+              />
             </div>
           )}
         </CardContent>

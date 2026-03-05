@@ -19,6 +19,8 @@ import {
   CheckCircle2, Undo2
 } from "lucide-react";
 import type { ComplianceRecord, SmtpAccount, ComplianceDocument, Reminder, ComplianceHistory } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 const WHATSAPP_NUMBER = "923203682461";
 
@@ -358,22 +360,23 @@ export default function Compliance() {
       ) : filtered.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No compliance records found. Records are automatically created when formation dates are set on LLC/C-Corp orders.</CardContent></Card>
       ) : (
-        <div className="space-y-3">
-          {filtered.map(record => (
-            <ComplianceCard
-              key={record.id}
-              record={record}
-              expanded={expandedId === record.id}
-              onToggle={() => setExpandedId(expandedId === record.id ? null : record.id)}
-              onSendReminder={openSendDialog}
-              onAdvanceYear={(rec) => { setAdvancingRecord(rec); setAdvanceDocFile(null); setConfirmAdvanceOpen(true); }}
-              onMarkSubmitted={(rec, type) => { setMarkSubmittedRecord(rec); setMarkSubmittedType(type); setMarkSubmittedFile(null); setMarkSubmittedOpen(true); }}
-              onUploadDoc={(id) => { setUploadingFor(id); fileInputRef.current?.click(); }}
-              onDeleteDoc={(docId, complianceId) => deleteDocMutation.mutate({ docId, complianceId })}
-              reminders={reminders.filter(r => r.order_id === record.order_id)}
-            />
-          ))}
-        </div>
+        <ComplianceListWithPagination
+          filtered={filtered}
+          expandedId={expandedId}
+          setExpandedId={setExpandedId}
+          openSendDialog={openSendDialog}
+          setAdvancingRecord={setAdvancingRecord}
+          setAdvanceDocFile={setAdvanceDocFile}
+          setConfirmAdvanceOpen={setConfirmAdvanceOpen}
+          setMarkSubmittedRecord={setMarkSubmittedRecord}
+          setMarkSubmittedType={setMarkSubmittedType}
+          setMarkSubmittedFile={setMarkSubmittedFile}
+          setMarkSubmittedOpen={setMarkSubmittedOpen}
+          setUploadingFor={setUploadingFor}
+          fileInputRef={fileInputRef}
+          deleteDocMutation={deleteDocMutation}
+          reminders={reminders}
+        />
       )}
 
       <input
@@ -795,5 +798,71 @@ function ComplianceCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function ComplianceListWithPagination({
+  filtered,
+  expandedId,
+  setExpandedId,
+  openSendDialog,
+  setAdvancingRecord,
+  setAdvanceDocFile,
+  setConfirmAdvanceOpen,
+  setMarkSubmittedRecord,
+  setMarkSubmittedType,
+  setMarkSubmittedFile,
+  setMarkSubmittedOpen,
+  setUploadingFor,
+  fileInputRef,
+  deleteDocMutation,
+  reminders,
+}: {
+  filtered: ComplianceRecord[];
+  expandedId: number | null;
+  setExpandedId: (id: number | null) => void;
+  openSendDialog: (record: ComplianceRecord, type: "annual_report" | "federal_tax" | "both") => void;
+  setAdvancingRecord: (rec: ComplianceRecord) => void;
+  setAdvanceDocFile: (file: File | null) => void;
+  setConfirmAdvanceOpen: (open: boolean) => void;
+  setMarkSubmittedRecord: (rec: ComplianceRecord) => void;
+  setMarkSubmittedType: (type: "annual_report" | "federal_tax") => void;
+  setMarkSubmittedFile: (file: File | null) => void;
+  setMarkSubmittedOpen: (open: boolean) => void;
+  setUploadingFor: (id: number) => void;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  deleteDocMutation: any;
+  reminders: Reminder[];
+}) {
+  const pagination = usePagination(filtered);
+
+  return (
+    <div className="space-y-3">
+      {pagination.paginatedData.map(record => (
+        <ComplianceCard
+          key={record.id}
+          record={record}
+          expanded={expandedId === record.id}
+          onToggle={() => setExpandedId(expandedId === record.id ? null : record.id)}
+          onSendReminder={openSendDialog}
+          onAdvanceYear={(rec) => { setAdvancingRecord(rec); setAdvanceDocFile(null); setConfirmAdvanceOpen(true); }}
+          onMarkSubmitted={(rec, type) => { setMarkSubmittedRecord(rec); setMarkSubmittedType(type); setMarkSubmittedFile(null); setMarkSubmittedOpen(true); }}
+          onUploadDoc={(id) => { setUploadingFor(id); fileInputRef.current?.click(); }}
+          onDeleteDoc={(docId, complianceId) => deleteDocMutation.mutate({ docId, complianceId })}
+          reminders={reminders.filter(r => r.order_id === record.order_id)}
+        />
+      ))}
+      <PaginationControls
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        pageSizeOptions={pagination.pageSizeOptions}
+        onPageChange={pagination.setPage}
+        onPageSizeChange={pagination.setPageSize}
+      />
+    </div>
   );
 }

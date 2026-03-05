@@ -14,9 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getAuthHeaders, authFetch } from "@/lib/auth";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 import {
   ArrowLeft, Mail, Phone, MapPin, Pencil, FileText, Upload,
-  Download, Trash2, Eye, Cloud, CloudOff, ShieldCheck, Copy, Users, Gift, ExternalLink, Share2, Link2
+  Download, Trash2, Eye, Cloud, CloudOff, ShieldCheck, Copy, Users, Gift, ExternalLink, Share2, Link2,
+  ChevronDown, ChevronUp
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import type { Customer, Order, Invoice, CustomerDocument, SmtpAccount, CustomerPortalLink } from "@shared/schema";
@@ -100,6 +103,12 @@ export default function CustomerDetail() {
 
   const customerOrders = orders.filter(o => o.customer_id === id);
   const customerInvoices = invoices.filter(i => i.customer_id === id);
+
+  const [ordersExpanded, setOrdersExpanded] = useState(true);
+  const [invoicesExpanded, setInvoicesExpanded] = useState(true);
+
+  const ordersPagination = usePagination(customerOrders, { defaultPageSize: 20 });
+  const invoicesPagination = usePagination(customerInvoices, { defaultPageSize: 20 });
 
   const portalLinkMutation = useMutation({
     mutationFn: async () => {
@@ -355,47 +364,107 @@ export default function CustomerDetail() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-lg">Orders ({customerOrders.length})</CardTitle></CardHeader>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-lg">Orders ({customerOrders.length})</CardTitle>
+                {customerOrders.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setOrdersExpanded(!ordersExpanded)}
+                    data-testid="button-toggle-customer-orders"
+                  >
+                    {ordersExpanded ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
+                    {ordersExpanded ? "Collapse" : "Expand"}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
             <CardContent>
-              {customerOrders.length > 0 ? (
-                <div className="space-y-2">
-                  {customerOrders.map(order => (
-                    <Link key={order.id} href={`/orders/${order.id}`}>
-                      <div className="flex items-center justify-between gap-2 p-3 rounded-md bg-accent/50 hover-elevate cursor-pointer">
-                        <div>
-                          <p className="text-sm font-medium">{order.order_number}</p>
-                          <p className="text-xs text-muted-foreground">{order.service_type} - {order.state}</p>
-                        </div>
-                        <Badge variant={order.status === "completed" ? "default" : "secondary"}>{order.status}</Badge>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : <p className="text-sm text-muted-foreground">No orders yet</p>}
+              {ordersExpanded && (
+                <>
+                  {customerOrders.length > 0 ? (
+                    <div className="space-y-2">
+                      {ordersPagination.paginatedData.map(order => (
+                        <Link key={order.id} href={`/orders/${order.id}`}>
+                          <div className="flex items-center justify-between gap-2 p-3 rounded-md bg-accent/50 hover-elevate cursor-pointer">
+                            <div>
+                              <p className="text-sm font-medium">{order.order_number}</p>
+                              <p className="text-xs text-muted-foreground">{order.service_type} - {order.state}</p>
+                            </div>
+                            <Badge variant={order.status === "completed" ? "default" : "secondary"}>{order.status}</Badge>
+                          </div>
+                        </Link>
+                      ))}
+                      <PaginationControls
+                        page={ordersPagination.page}
+                        pageSize={ordersPagination.pageSize}
+                        totalPages={ordersPagination.totalPages}
+                        totalItems={ordersPagination.totalItems}
+                        startIndex={ordersPagination.startIndex}
+                        endIndex={ordersPagination.endIndex}
+                        pageSizeOptions={ordersPagination.pageSizeOptions}
+                        onPageChange={ordersPagination.setPage}
+                        onPageSizeChange={ordersPagination.setPageSize}
+                      />
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground">No orders yet</p>}
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-lg">Invoices ({customerInvoices.length})</CardTitle></CardHeader>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-lg">Invoices ({customerInvoices.length})</CardTitle>
+                {customerInvoices.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setInvoicesExpanded(!invoicesExpanded)}
+                    data-testid="button-toggle-customer-invoices"
+                  >
+                    {invoicesExpanded ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
+                    {invoicesExpanded ? "Collapse" : "Expand"}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
             <CardContent>
-              {customerInvoices.length > 0 ? (
-                <div className="space-y-2">
-                  {customerInvoices.map(inv => (
-                    <Link key={inv.id} href={`/invoices/${inv.id}`}>
-                      <div className="flex items-center justify-between gap-2 p-3 rounded-md bg-accent/50 hover-elevate cursor-pointer">
-                        <div>
-                          <p className="text-sm font-medium">{inv.invoice_number}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold">${Number(inv.total).toLocaleString()}</p>
-                          <Badge variant={inv.status === "paid" ? "default" : "secondary"}>{inv.status}</Badge>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : <p className="text-sm text-muted-foreground">No invoices yet</p>}
+              {invoicesExpanded && (
+                <>
+                  {customerInvoices.length > 0 ? (
+                    <div className="space-y-2">
+                      {invoicesPagination.paginatedData.map(inv => (
+                        <Link key={inv.id} href={`/invoices/${inv.id}`}>
+                          <div className="flex items-center justify-between gap-2 p-3 rounded-md bg-accent/50 hover-elevate cursor-pointer">
+                            <div>
+                              <p className="text-sm font-medium">{inv.invoice_number}</p>
+                              <p className="text-xs text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold">${Number(inv.total).toLocaleString()}</p>
+                              <Badge variant={inv.status === "paid" ? "default" : "secondary"}>{inv.status}</Badge>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                      <PaginationControls
+                        page={invoicesPagination.page}
+                        pageSize={invoicesPagination.pageSize}
+                        totalPages={invoicesPagination.totalPages}
+                        totalItems={invoicesPagination.totalItems}
+                        startIndex={invoicesPagination.startIndex}
+                        endIndex={invoicesPagination.endIndex}
+                        pageSizeOptions={invoicesPagination.pageSizeOptions}
+                        onPageChange={invoicesPagination.setPage}
+                        onPageSizeChange={invoicesPagination.setPageSize}
+                      />
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground">No invoices yet</p>}
+                </>
+              )}
             </CardContent>
           </Card>
 

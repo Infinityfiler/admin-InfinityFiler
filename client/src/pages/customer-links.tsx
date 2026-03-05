@@ -8,15 +8,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/auth";
 import {
   Link as LinkIcon, Plus, Search, Copy, Eye, Ban, ExternalLink,
-  FileText, User, Upload, Trash2, Clock, Activity, CheckCircle
+  FileText, User, Upload, Trash2, Clock, Activity, CheckCircle, ChevronDown, ChevronRight
 } from "lucide-react";
 import type { CustomerPortalLink, LinkActivityLog, Customer } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 function formatRelativeTime(dateStr: string | null): string {
   if (!dateStr) return "Never";
@@ -260,86 +261,14 @@ export default function CustomerLinks() {
       ) : filtered.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No links found</CardContent></Card>
       ) : (
-        <div className="grid gap-3">
-          {filtered.map((link) => (
-            <Card key={link.id} data-testid={`card-link-${link.id}`}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-sm" data-testid={`text-link-customer-${link.id}`}>
-                        {link.customer_name || link.company_name || "Unknown"}
-                      </h3>
-                      {link.company_name && link.customer_name && (
-                        <span className="text-xs text-muted-foreground">{link.company_name}</span>
-                      )}
-                      <Badge
-                        variant={link.is_revoked ? "destructive" : "secondary"}
-                        data-testid={`badge-link-status-${link.id}`}
-                      >
-                        {link.is_revoked ? "Revoked" : "Active"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <span className="text-xs text-muted-foreground font-mono" data-testid={`text-link-token-${link.id}`}>
-                        {link.token.substring(0, 12)}...
-                      </span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Eye className="h-3 w-3" />{link.view_count || 0} views
-                      </span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />Last: {formatRelativeTime(link.last_viewed_at)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Created: {formatDate(link.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(getPortalUrl(link.token))}
-                      data-testid={`button-copy-link-${link.id}`}
-                      title="Copy full URL"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => window.open(getPortalUrl(link.token), "_blank")}
-                      data-testid={`button-open-link-${link.id}`}
-                      title="Open portal"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => { setSelectedLink(link); setActivityOpen(true); }}
-                      data-testid={`button-activity-${link.id}`}
-                      title="View activity"
-                    >
-                      <Activity className="h-4 w-4" />
-                    </Button>
-                    {!link.is_revoked && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => { if (confirm("Revoke this link? The customer will no longer be able to access their portal.")) revokeMutation.mutate(link.id); }}
-                        data-testid={`button-revoke-${link.id}`}
-                        title="Revoke link"
-                      >
-                        <Ban className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <LinksListWithPagination
+          filtered={filtered}
+          customers={customers}
+          copyToClipboard={copyToClipboard}
+          setSelectedLink={setSelectedLink}
+          setActivityOpen={setActivityOpen}
+          revokeMutation={revokeMutation}
+        />
       )}
 
       <Dialog open={generateOpen} onOpenChange={(v) => { setGenerateOpen(v); if (!v) { setGeneratedLink(null); setSelectedCustomerId(null); setCustomerSearch(""); } }}>
@@ -457,33 +386,167 @@ export default function CustomerLinks() {
               <p className="text-sm">No activity recorded yet</p>
             </div>
           ) : (
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-2 pr-2">
-                {activityLog.map((entry) => (
-                  <div key={entry.id} className="flex items-start gap-3 p-3 rounded-md border" data-testid={`activity-entry-${entry.id}`}>
-                    <div className="mt-0.5 shrink-0">
-                      {getActionIcon(entry.action)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="secondary" className="text-xs">
-                          {getActionLabel(entry.action)}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {formatRelativeTime(entry.created_at)}
-                        </span>
-                      </div>
-                      <p className="text-sm mt-1" data-testid={`text-activity-detail-${entry.id}`}>
-                        {getActionDescription(entry.action, entry.details || {})}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+            <ActivityLogCollapsible activityLog={activityLog} />
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function ActivityLogCollapsible({ activityLog }: { activityLog: LinkActivityLog[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const previewCount = 3;
+  const displayedLogs = expanded ? activityLog : activityLog.slice(0, previewCount);
+  const hasMore = activityLog.length > previewCount;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">{activityLog.length} activity entries</span>
+        {hasMore && (
+          <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} data-testid="button-toggle-activity-logs">
+            {expanded ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
+            {expanded ? "Collapse" : `Show all ${activityLog.length}`}
+          </Button>
+        )}
+      </div>
+      <ScrollArea className={expanded ? "h-[400px]" : "max-h-[200px]"}>
+        <div className="space-y-2 pr-2">
+          {displayedLogs.map((entry) => (
+            <div key={entry.id} className="flex items-start gap-3 p-3 rounded-md border" data-testid={`activity-entry-${entry.id}`}>
+              <div className="mt-0.5 shrink-0">
+                {getActionIcon(entry.action)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className="text-xs">
+                    {getActionLabel(entry.action)}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {formatRelativeTime(entry.created_at)}
+                  </span>
+                </div>
+                <p className="text-sm mt-1" data-testid={`text-activity-detail-${entry.id}`}>
+                  {getActionDescription(entry.action, entry.details || {})}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+function LinksListWithPagination({
+  filtered,
+  customers,
+  copyToClipboard,
+  setSelectedLink,
+  setActivityOpen,
+  revokeMutation,
+}: {
+  filtered: CustomerPortalLink[];
+  customers: Customer[];
+  copyToClipboard: (text: string) => void;
+  setSelectedLink: (link: CustomerPortalLink) => void;
+  setActivityOpen: (open: boolean) => void;
+  revokeMutation: any;
+}) {
+  const pagination = usePagination(filtered);
+
+  return (
+    <div className="grid gap-3">
+      {pagination.paginatedData.map((link) => (
+        <Card key={link.id} data-testid={`card-link-${link.id}`}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-sm" data-testid={`text-link-customer-${link.id}`}>
+                    {link.customer_name || link.company_name || "Unknown"}
+                  </h3>
+                  {link.company_name && link.customer_name && (
+                    <span className="text-xs text-muted-foreground">{link.company_name}</span>
+                  )}
+                  <Badge
+                    variant={link.is_revoked ? "destructive" : "secondary"}
+                    data-testid={`badge-link-status-${link.id}`}
+                  >
+                    {link.is_revoked ? "Revoked" : "Active"}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <span className="text-xs text-muted-foreground font-mono" data-testid={`text-link-token-${link.id}`}>
+                    {link.token.substring(0, 12)}...
+                  </span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Eye className="h-3 w-3" />{link.view_count || 0} views
+                  </span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />Last: {formatRelativeTime(link.last_viewed_at)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Created: {formatDate(link.created_at)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => copyToClipboard(getPortalUrl(link.token))}
+                  data-testid={`button-copy-link-${link.id}`}
+                  title="Copy full URL"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => window.open(getPortalUrl(link.token), "_blank")}
+                  data-testid={`button-open-link-${link.id}`}
+                  title="Open portal"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => { setSelectedLink(link); setActivityOpen(true); }}
+                  data-testid={`button-activity-${link.id}`}
+                  title="View activity"
+                >
+                  <Activity className="h-4 w-4" />
+                </Button>
+                {!link.is_revoked && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => { if (confirm("Revoke this link? The customer will no longer be able to access their portal.")) revokeMutation.mutate(link.id); }}
+                    data-testid={`button-revoke-${link.id}`}
+                    title="Revoke link"
+                  >
+                    <Ban className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+      <PaginationControls
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        pageSizeOptions={pagination.pageSizeOptions}
+        onPageChange={pagination.setPage}
+        onPageSizeChange={pagination.setPageSize}
+      />
     </div>
   );
 }

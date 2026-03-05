@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Send, Trash2, Mail, Server, History, Users, Filter, X, Plus, UserPlus } from "lucide-react";
 import type { SmtpAccount, EmailLog, Customer, Order, Invoice } from "@shared/schema";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 type OrderWithMeta = Order & { invoice_status: string; all_services: string[]; all_categories: string[]; };
 
@@ -169,6 +171,8 @@ export default function Emails() {
   });
 
   const hasActiveFilters = filterOrderStatus !== "all" || filterInvoiceStatus !== "all" || filterCategory !== "all" || filterReferral !== "all";
+
+  const smtpPagination = usePagination(accounts);
 
   return (
     <div className="p-6 space-y-6">
@@ -452,7 +456,7 @@ export default function Emails() {
             <Card><CardContent className="p-8 text-center text-muted-foreground">No SMTP accounts configured</CardContent></Card>
           ) : (
             <div className="grid gap-3">
-              {accounts.map(account => (
+              {smtpPagination.paginatedData.map(account => (
                 <Card key={account.id} className="hover-elevate">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -472,6 +476,17 @@ export default function Emails() {
                   </CardContent>
                 </Card>
               ))}
+              <PaginationControls
+                page={smtpPagination.page}
+                pageSize={smtpPagination.pageSize}
+                totalPages={smtpPagination.totalPages}
+                totalItems={smtpPagination.totalItems}
+                startIndex={smtpPagination.startIndex}
+                endIndex={smtpPagination.endIndex}
+                pageSizeOptions={smtpPagination.pageSizeOptions}
+                onPageChange={smtpPagination.setPage}
+                onPageSizeChange={smtpPagination.setPageSize}
+              />
             </div>
           )}
         </TabsContent>
@@ -482,26 +497,44 @@ export default function Emails() {
           ) : logs.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">No emails sent yet</CardContent></Card>
           ) : (
-            <div className="grid gap-3">
-              {logs.map(log => (
-                <Card key={log.id} className="hover-elevate">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm">{log.subject}</h3>
-                        <p className="text-sm text-muted-foreground">From: {log.from_email}</p>
-                        <p className="text-xs text-muted-foreground">To: {(log.to_emails || []).join(", ")}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(log.sent_at).toLocaleString()}</p>
-                      </div>
-                      <Badge variant={log.status === "sent" ? "default" : "destructive"}>{log.status}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <EmailLogsWithPagination logs={logs} />
           )}
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function EmailLogsWithPagination({ logs }: { logs: EmailLog[] }) {
+  const pagination = usePagination(logs);
+  return (
+    <div className="grid gap-3">
+      {pagination.paginatedData.map(log => (
+        <Card key={log.id} className="hover-elevate">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm">{log.subject}</h3>
+                <p className="text-sm text-muted-foreground">From: {log.from_email}</p>
+                <p className="text-xs text-muted-foreground">To: {(log.to_emails || []).join(", ")}</p>
+                <p className="text-xs text-muted-foreground">{new Date(log.sent_at).toLocaleString()}</p>
+              </div>
+              <Badge variant={log.status === "sent" ? "default" : "destructive"}>{log.status}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+      <PaginationControls
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        pageSizeOptions={pagination.pageSizeOptions}
+        onPageChange={pagination.setPage}
+        onPageSizeChange={pagination.setPageSize}
+      />
     </div>
   );
 }

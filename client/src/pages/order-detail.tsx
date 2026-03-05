@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getAuthHeaders, authFetch } from "@/lib/auth";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 import {
   ArrowLeft, Plus, FileText, StickyNote, Calendar, Download, Trash2,
   Upload, CloudOff, Cloud, Eye, Pencil, CheckCircle2, Clock,
@@ -127,6 +129,7 @@ export default function OrderDetail() {
   const [logDescription, setLogDescription] = useState("");
   const [logFile, setLogFile] = useState<File | null>(null);
   const logFileRef = useRef<HTMLInputElement>(null);
+  const [activityLogsExpanded, setActivityLogsExpanded] = useState(false);
   const [markSubmittedDialogOpen, setMarkSubmittedDialogOpen] = useState(false);
   const [markSubmittedRecord, setMarkSubmittedRecord] = useState<ComplianceRecord | null>(null);
   const [markSubmittedType, setMarkSubmittedType] = useState<"annual_report" | "federal_tax">("federal_tax");
@@ -183,6 +186,8 @@ export default function OrderDetail() {
     enabled: !!id,
   });
   const { data: smtpAccounts = [] } = useQuery<SmtpAccount[]>({ queryKey: ["/api/smtp-accounts"] });
+
+  const activityLogsPagination = usePagination(activityLogs, { defaultPageSize: 20 });
 
   const includesMeta: Record<string, IncludeMeta> = order?.includes_meta || {};
 
@@ -1494,7 +1499,20 @@ export default function OrderDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2"><Activity className="h-4 w-4" />Activity Log</CardTitle>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-lg flex items-center gap-2"><Activity className="h-4 w-4" />Activity Log ({activityLogs.length})</CardTitle>
+                {activityLogs.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActivityLogsExpanded(!activityLogsExpanded)}
+                    data-testid="button-toggle-activity-logs"
+                  >
+                    {activityLogsExpanded ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
+                    {activityLogsExpanded ? "Collapse" : "Expand"}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2 p-3 rounded-lg border border-dashed">
@@ -1536,31 +1554,49 @@ export default function OrderDetail() {
                 </div>
               </div>
 
-              {activityLogs.length > 0 ? (
-                <div className="space-y-1">
-                  {activityLogs.map(log => (
-                    <div key={log.id} className="flex items-start gap-3 p-2.5 rounded-md hover:bg-accent/50 transition-colors">
-                      <div className="mt-0.5 shrink-0">{getActionIcon(log.action)}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className="text-[10px] h-4 font-medium">{getActionLabel(log.action)}</Badge>
-                          <span className="text-[11px] text-muted-foreground">{formatPKT(log.created_at)}</span>
-                        </div>
-                        <p className="text-sm mt-0.5">{log.description}</p>
-                        {log.file_name && (
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <FileText className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">{log.file_name}</span>
-                            {log.dropbox_path && (
-                              <Badge variant="outline" className="text-[10px] h-4 gap-0.5"><Cloud className="h-2.5 w-2.5" />Dropbox</Badge>
+              {activityLogsExpanded && (
+                <>
+                  {activityLogs.length > 0 ? (
+                    <div className="space-y-1">
+                      {activityLogsPagination.paginatedData.map(log => (
+                        <div key={log.id} className="flex items-start gap-3 p-2.5 rounded-md hover:bg-accent/50 transition-colors">
+                          <div className="mt-0.5 shrink-0">{getActionIcon(log.action)}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-[10px] h-4 font-medium">{getActionLabel(log.action)}</Badge>
+                              <span className="text-[11px] text-muted-foreground">{formatPKT(log.created_at)}</span>
+                            </div>
+                            <p className="text-sm mt-0.5">{log.description}</p>
+                            {log.file_name && (
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <FileText className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{log.file_name}</span>
+                                {log.dropbox_path && (
+                                  <Badge variant="outline" className="text-[10px] h-4 gap-0.5"><Cloud className="h-2.5 w-2.5" />Dropbox</Badge>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ))}
+                      <PaginationControls
+                        page={activityLogsPagination.page}
+                        pageSize={activityLogsPagination.pageSize}
+                        totalPages={activityLogsPagination.totalPages}
+                        totalItems={activityLogsPagination.totalItems}
+                        startIndex={activityLogsPagination.startIndex}
+                        endIndex={activityLogsPagination.endIndex}
+                        pageSizeOptions={activityLogsPagination.pageSizeOptions}
+                        onPageChange={activityLogsPagination.setPage}
+                        onPageSizeChange={activityLogsPagination.setPageSize}
+                      />
                     </div>
-                  ))}
-                </div>
-              ) : <p className="text-sm text-muted-foreground">No activity logged yet</p>}
+                  ) : <p className="text-sm text-muted-foreground">No activity logged yet</p>}
+                </>
+              )}
+              {!activityLogsExpanded && activityLogs.length > 0 && (
+                <p className="text-sm text-muted-foreground">{activityLogs.length} log entries — click Expand to view</p>
+              )}
             </CardContent>
           </Card>
 

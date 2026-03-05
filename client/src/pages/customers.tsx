@@ -14,6 +14,8 @@ import { authFetch } from "@/lib/auth";
 import { Plus, Search, Trash2, ShieldCheck, FileText, X, UserCheck, UserPlus, Link2, Copy, Check } from "lucide-react";
 import type { Customer } from "@shared/schema";
 import CustomerFormFields from "@/components/customer-form-fields";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 interface DocFile {
   file: File;
@@ -111,6 +113,9 @@ export default function Customers() {
 
   const activeCustomers = filtered.filter(c => customerIdsWithActivity.has(c.id));
   const leads = filtered.filter(c => !customerIdsWithActivity.has(c.id));
+
+  const leadsPagination = usePagination(leads);
+  const activePagination = usePagination(activeCustomers);
 
   const renderCustomerCard = (customer: Customer, isLead: boolean) => (
     <Card
@@ -255,8 +260,19 @@ export default function Customers() {
                 <Badge variant="destructive" className="text-xs">{leads.length}</Badge>
               </div>
               <div className="grid gap-3">
-                {leads.map(c => renderCustomerCard(c, true))}
+                {leadsPagination.paginatedData.map(c => renderCustomerCard(c, true))}
               </div>
+              <PaginationControls
+                page={leadsPagination.page}
+                pageSize={leadsPagination.pageSize}
+                totalPages={leadsPagination.totalPages}
+                totalItems={leadsPagination.totalItems}
+                startIndex={leadsPagination.startIndex}
+                endIndex={leadsPagination.endIndex}
+                pageSizeOptions={leadsPagination.pageSizeOptions}
+                onPageChange={leadsPagination.setPage}
+                onPageSizeChange={leadsPagination.setPageSize}
+              />
             </div>
           )}
 
@@ -270,8 +286,19 @@ export default function Customers() {
                 <Badge className="text-xs bg-green-100 text-green-700 hover:bg-green-100">{activeCustomers.length}</Badge>
               </div>
               <div className="grid gap-3">
-                {activeCustomers.map(c => renderCustomerCard(c, false))}
+                {activePagination.paginatedData.map(c => renderCustomerCard(c, false))}
               </div>
+              <PaginationControls
+                page={activePagination.page}
+                pageSize={activePagination.pageSize}
+                totalPages={activePagination.totalPages}
+                totalItems={activePagination.totalItems}
+                startIndex={activePagination.startIndex}
+                endIndex={activePagination.endIndex}
+                pageSizeOptions={activePagination.pageSizeOptions}
+                onPageChange={activePagination.setPage}
+                onPageSizeChange={activePagination.setPageSize}
+              />
             </div>
           )}
         </div>

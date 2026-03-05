@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { authFetch } from "@/lib/auth";
 import { Users, ShoppingCart, FileText, DollarSign, Clock, ArrowRight, CheckCircle2, RefreshCw, Calendar, TrendingUp, AlertTriangle } from "lucide-react";
 import { useState, useMemo } from "react";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 function StatusBadge({ status, type }: { status: string; type: "order" | "invoice" }) {
   if (type === "order") {
@@ -77,6 +79,121 @@ function buildQS(sd: string, ed: string) {
   if (ed) params.set("endDate", ed);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
+}
+
+function RecentOrdersSection({ orders }: { orders: any[] }) {
+  const ordersPagination = usePagination(orders, { defaultPageSize: 20 });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-1">
+        <CardTitle className="text-lg">Recent Orders</CardTitle>
+        <Link href="/orders">
+          <span className="text-xs text-primary cursor-pointer hover:underline flex items-center gap-1" data-testid="link-view-all-orders">
+            View All <ArrowRight className="h-3 w-3" />
+          </span>
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {orders.length > 0 ? (
+          <div className="space-y-2">
+            {ordersPagination.paginatedData.map((order: any) => (
+              <Link key={order.id} href={`/orders/${order.id}`}>
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors" data-testid={`order-row-${order.id}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-foreground">{order.order_number}</span>
+                      <span className="text-xs text-muted-foreground">{order.service_type}{order.state ? ` - ${order.state}` : ""}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-sm text-foreground">{order.company_name}</span>
+                      {order.customer_name && order.customer_name !== order.company_name && (
+                        <span className="text-xs text-muted-foreground">({order.customer_name})</span>
+                      )}
+                      {order.referral_name && (
+                        <Badge variant="outline" className="text-[10px] h-4">Ref: {order.referral_name}</Badge>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  </div>
+                  <StatusBadge status={order.status} type="order" />
+                </div>
+              </Link>
+            ))}
+            <PaginationControls
+              page={ordersPagination.page}
+              pageSize={ordersPagination.pageSize}
+              totalPages={ordersPagination.totalPages}
+              totalItems={ordersPagination.totalItems}
+              startIndex={ordersPagination.startIndex}
+              endIndex={ordersPagination.endIndex}
+              pageSizeOptions={ordersPagination.pageSizeOptions}
+              onPageChange={ordersPagination.setPage}
+              onPageSizeChange={ordersPagination.setPageSize}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No orders in this period</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecentInvoicesSection({ invoices }: { invoices: any[] }) {
+  const invoicesPagination = usePagination(invoices, { defaultPageSize: 20 });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-1">
+        <CardTitle className="text-lg">Recent Invoices</CardTitle>
+        <Link href="/invoices">
+          <span className="text-xs text-primary cursor-pointer hover:underline flex items-center gap-1" data-testid="link-view-all-invoices">
+            View All <ArrowRight className="h-3 w-3" />
+          </span>
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {invoices.length > 0 ? (
+          <div className="space-y-2">
+            {invoicesPagination.paginatedData.map((inv: any) => (
+              <Link key={inv.id} href={`/invoices/${inv.id}`}>
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors" data-testid={`invoice-row-${inv.id}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-foreground">{inv.invoice_number}</span>
+                      <span className="text-sm font-bold text-foreground">${Number(inv.total).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-sm text-foreground">{inv.company_name}</span>
+                      {inv.customer_name && inv.customer_name !== inv.company_name && (
+                        <span className="text-xs text-muted-foreground">({inv.customer_name})</span>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">{new Date(inv.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  </div>
+                  <StatusBadge status={inv.status} type="invoice" />
+                </div>
+              </Link>
+            ))}
+            <PaginationControls
+              page={invoicesPagination.page}
+              pageSize={invoicesPagination.pageSize}
+              totalPages={invoicesPagination.totalPages}
+              totalItems={invoicesPagination.totalItems}
+              startIndex={invoicesPagination.startIndex}
+              endIndex={invoicesPagination.endIndex}
+              pageSizeOptions={invoicesPagination.pageSizeOptions}
+              onPageChange={invoicesPagination.setPage}
+              onPageSizeChange={invoicesPagination.setPageSize}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No invoices in this period</p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function Dashboard() {
@@ -259,86 +376,8 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Recent Orders</CardTitle>
-            <Link href="/orders">
-              <span className="text-xs text-primary cursor-pointer hover:underline flex items-center gap-1" data-testid="link-view-all-orders">
-                View All <ArrowRight className="h-3 w-3" />
-              </span>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {stats?.recentOrders?.length > 0 ? (
-              <div className="space-y-2">
-                {stats.recentOrders.map((order: any) => (
-                  <Link key={order.id} href={`/orders/${order.id}`}>
-                    <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors" data-testid={`order-row-${order.id}`}>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-foreground">{order.order_number}</span>
-                          <span className="text-xs text-muted-foreground">{order.service_type}{order.state ? ` - ${order.state}` : ""}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-sm text-foreground">{order.company_name}</span>
-                          {order.customer_name && order.customer_name !== order.company_name && (
-                            <span className="text-xs text-muted-foreground">({order.customer_name})</span>
-                          )}
-                          {order.referral_name && (
-                            <Badge variant="outline" className="text-[10px] h-4">Ref: {order.referral_name}</Badge>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                      </div>
-                      <StatusBadge status={order.status} type="order" />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No orders in this period</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Recent Invoices</CardTitle>
-            <Link href="/invoices">
-              <span className="text-xs text-primary cursor-pointer hover:underline flex items-center gap-1" data-testid="link-view-all-invoices">
-                View All <ArrowRight className="h-3 w-3" />
-              </span>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {stats?.recentInvoices?.length > 0 ? (
-              <div className="space-y-2">
-                {stats.recentInvoices.map((inv: any) => (
-                  <Link key={inv.id} href={`/invoices/${inv.id}`}>
-                    <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors" data-testid={`invoice-row-${inv.id}`}>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-foreground">{inv.invoice_number}</span>
-                          <span className="text-sm font-bold text-foreground">${Number(inv.total).toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-sm text-foreground">{inv.company_name}</span>
-                          {inv.customer_name && inv.customer_name !== inv.company_name && (
-                            <span className="text-xs text-muted-foreground">({inv.customer_name})</span>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">{new Date(inv.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                      </div>
-                      <StatusBadge status={inv.status} type="invoice" />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No invoices in this period</p>
-            )}
-          </CardContent>
-        </Card>
+        <RecentOrdersSection orders={stats?.recentOrders || []} />
+        <RecentInvoicesSection invoices={stats?.recentInvoices || []} />
       </div>
     </div>
   );

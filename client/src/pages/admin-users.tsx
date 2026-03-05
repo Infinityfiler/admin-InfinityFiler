@@ -18,6 +18,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { UserCog, Shield, Clock, LogIn, Pencil, Trash2, Loader2 } from "lucide-react";
+import { usePagination } from "@/hooks/use-pagination";
+import PaginationControls from "@/components/pagination-controls";
 
 export default function AdminUsers() {
   const { toast } = useToast();
@@ -28,6 +30,8 @@ export default function AdminUsers() {
   const { data: admins = [], isLoading } = useQuery<Admin[]>({
     queryKey: ["/api/admins"],
   });
+
+  const pagination = usePagination(admins);
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<Admin> }) => {
@@ -150,6 +154,7 @@ export default function AdminUsers() {
           {admins.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No admin accounts found</p>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -163,7 +168,7 @@ export default function AdminUsers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {admins.map((admin) => (
+                {pagination.paginatedData.map((admin) => (
                   <TableRow key={admin.id} data-testid={`row-admin-${admin.id}`}>
                     <TableCell className="font-medium" data-testid={`text-admin-name-${admin.id}`}>
                       {admin.name || "—"}
@@ -217,6 +222,18 @@ export default function AdminUsers() {
                 ))}
               </TableBody>
             </Table>
+            <PaginationControls
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              pageSizeOptions={pagination.pageSizeOptions}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+            />
+            </>
           )}
         </CardContent>
       </Card>
