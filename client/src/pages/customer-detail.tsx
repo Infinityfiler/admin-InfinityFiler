@@ -246,7 +246,7 @@ export default function CustomerDetail() {
           <h1 className="text-2xl font-bold" data-testid="text-customer-name">{customer.company_name || customer.individual_name}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/create-invoice?customerId=${id}`}>
+          <Link href={`/invoices/create?customerId=${id}`}>
             <Button variant="default" data-testid="button-generate-invoice">
               <FileText className="h-4 w-4 mr-2" />Generate Invoice
             </Button>
