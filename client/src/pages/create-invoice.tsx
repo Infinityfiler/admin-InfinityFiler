@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,7 @@ function isLLCFormation(item: LineItem, services: Service[]): boolean {
 export default function CreateInvoice() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const searchString = useSearch();
   const { data: customers = [] } = useQuery<Customer[]>({ queryKey: ["/api/customers"] });
   const { data: services = [] } = useQuery<Service[]>({ queryKey: ["/api/services"] });
   const { data: bundles = [] } = useQuery<BundlePackage[]>({ queryKey: ["/api/bundles"] });
@@ -137,6 +138,26 @@ export default function CreateInvoice() {
       else setReferralPartner(null);
     } catch { setReferralPartner(null); }
   };
+
+  useEffect(() => {
+    if (!customers.length) return;
+    const params = new URLSearchParams(searchString);
+    const preselectedId = params.get("customerId");
+    if (preselectedId) {
+      const targetId = Number(preselectedId);
+      if (selectedCustomer?.id === targetId) return;
+      const found = customers.find((c) => c.id === targetId);
+      if (found) {
+        setSelectedCustomer(found);
+        if (found.referral_partner_id) {
+          fetchPartnerRates(found.referral_partner_id);
+        } else {
+          setPartnerRates([]);
+          setReferralPartner(null);
+        }
+      }
+    }
+  }, [customers, searchString]);
 
   const getPartnerDiscountInfo = (serviceId: number | null): { discountType: string; discountValue: number; label: string } | null => {
     if (!serviceId || partnerRates.length === 0) return null;

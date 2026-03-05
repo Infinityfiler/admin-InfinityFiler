@@ -245,9 +245,16 @@ export default function CustomerDetail() {
           <Link href="/customers"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
           <h1 className="text-2xl font-bold" data-testid="text-customer-name">{customer.company_name || customer.individual_name}</h1>
         </div>
-        <Button variant="outline" onClick={() => portalLinkMutation.mutate()} disabled={portalLinkMutation.isPending} data-testid="button-customer-portal-link">
-          <Link2 className="h-4 w-4 mr-2" />{portalLinkMutation.isPending ? "Loading..." : "Portal Link"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href={`/create-invoice?customerId=${id}`}>
+            <Button variant="default" data-testid="button-generate-invoice">
+              <FileText className="h-4 w-4 mr-2" />Generate Invoice
+            </Button>
+          </Link>
+          <Button variant="outline" onClick={() => portalLinkMutation.mutate()} disabled={portalLinkMutation.isPending} data-testid="button-customer-portal-link">
+            <Link2 className="h-4 w-4 mr-2" />{portalLinkMutation.isPending ? "Loading..." : "Portal Link"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -271,6 +278,40 @@ export default function CustomerDetail() {
             {customer.referred_by && <div><p className="text-xs text-muted-foreground">Referred By</p><Badge variant="secondary">{customer.referred_by}</Badge></div>}
             {customer.notes && <div><p className="text-xs text-muted-foreground">Notes</p><p className="text-sm">{customer.notes}</p></div>}
             <div><p className="text-xs text-muted-foreground">Customer Since</p><p className="text-sm">{new Date(customer.created_at).toLocaleDateString()}</p></div>
+
+            <div className="pt-3 border-t space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact</p>
+              <div className="flex gap-2">
+                {customer.phone && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2 text-green-600 border-green-200 dark:border-green-800"
+                    data-testid="button-contact-whatsapp"
+                    onClick={() => {
+                      const phone = customer.phone?.replace(/[^0-9]/g, "") || "";
+                      const whatsappPhone = phone.startsWith("0") ? "92" + phone.slice(1) : phone.startsWith("92") ? phone : phone;
+                      window.open(`https://wa.me/${whatsappPhone}`, "_blank");
+                    }}
+                  >
+                    <SiWhatsapp className="h-4 w-4" />WhatsApp
+                  </Button>
+                )}
+                {customer.email && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2"
+                    data-testid="button-contact-email"
+                    onClick={() => {
+                      window.open(`mailto:${customer.email}`, "_blank");
+                    }}
+                  >
+                    <Mail className="h-4 w-4" />Email
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
