@@ -425,6 +425,49 @@ export default function Onboarding() {
 
             <Separator />
 
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4" />Verification Documents
+                  <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => docFileRef.current?.click()}
+                  data-testid="button-onboarding-add-files"
+                >
+                  <Plus className="h-3 w-3 mr-1" />Add Files
+                </Button>
+                <input ref={docFileRef} type="file" multiple className="hidden" onChange={handleDocFileSelect} />
+              </div>
+              <p className="text-xs text-muted-foreground">Upload any verification documents (passport, ID, etc.)</p>
+
+              {docFiles.length > 0 && (
+                <div className="space-y-2">
+                  {docFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 p-2 rounded border">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <Input
+                        value={f.docName}
+                        onChange={(e) => setDocFiles(prev => prev.map((df, idx) => idx === i ? { ...df, docName: e.target.value } : df))}
+                        className="h-7 text-xs flex-1"
+                        placeholder="Document name (e.g. Passport)"
+                      />
+                      <span className="text-[10px] text-muted-foreground shrink-0">{(f.file.size / 1024).toFixed(0)} KB</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setDocFiles(prev => prev.filter((_, idx) => idx !== i))}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground">{docFiles.length} file(s) attached</p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Services of Interest</h3>
               <p className="text-xs text-muted-foreground">Select the services you're interested in</p>
@@ -464,49 +507,6 @@ export default function Onboarding() {
               )}
               {selectedServices.length > 0 && (
                 <p className="text-xs text-muted-foreground">{selectedServices.length} service(s) selected</p>
-              )}
-            </div>
-
-            <Separator />
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4" />Verification Documents
-                  <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
-                </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-7"
-                  onClick={() => docFileRef.current?.click()}
-                  data-testid="button-onboarding-add-files"
-                >
-                  <Plus className="h-3 w-3 mr-1" />Add Files
-                </Button>
-                <input ref={docFileRef} type="file" multiple className="hidden" onChange={handleDocFileSelect} />
-              </div>
-              <p className="text-xs text-muted-foreground">Upload any verification documents (passport, ID, etc.)</p>
-
-              {docFiles.length > 0 && (
-                <div className="space-y-2">
-                  {docFiles.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2 rounded border">
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <Input
-                        value={f.docName}
-                        onChange={(e) => setDocFiles(prev => prev.map((df, idx) => idx === i ? { ...df, docName: e.target.value } : df))}
-                        className="h-7 text-xs flex-1"
-                        placeholder="Document name (e.g. Passport)"
-                      />
-                      <span className="text-[10px] text-muted-foreground shrink-0">{(f.file.size / 1024).toFixed(0)} KB</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setDocFiles(prev => prev.filter((_, idx) => idx !== i))}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground">{docFiles.length} file(s) attached</p>
-                </div>
               )}
             </div>
 
