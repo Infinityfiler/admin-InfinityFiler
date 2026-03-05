@@ -615,6 +615,10 @@ export async function runMigrations() {
       ALTER TABLE customers ADD COLUMN IF NOT EXISTS allow_invoice_access BOOLEAN DEFAULT false;
     `);
 
+    await client.query(`
+      UPDATE services SET type = 'general' WHERE category NOT IN ('LLC Formation', 'C-Corp Formation') AND (type = 'state_specific' OR type IS NULL);
+    `);
+
     console.log("All tables created successfully, RLS enabled");
 
     const { rows } = await client.query("SELECT COUNT(*) as count FROM company_settings");
