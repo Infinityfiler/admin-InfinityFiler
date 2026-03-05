@@ -1421,6 +1421,7 @@ export class SupabaseStorage implements IStorage {
     let cumulativeActive = 0;
     let cumulativeProfit = 0;
     let cumulativeRevenue = 0;
+    let cumulativeCollected = 0;
 
     const chartData = sortedDates.map(date => {
       const dayOrders = ordersByDate[date] || 0;
@@ -1428,11 +1429,13 @@ export class SupabaseStorage implements IStorage {
       const dayActive = activeByDate[date] || 0;
       const dayProfit = profitsByDate[date]?.profit || 0;
       const dayRevenue = revenueByDate[date]?.invoiced || 0;
+      const dayCollected = revenueByDate[date]?.collected || 0;
       cumulativeOrders += dayOrders;
       cumulativeLeads += dayLeads;
       cumulativeActive += dayActive;
       cumulativeProfit += dayProfit;
       cumulativeRevenue += dayRevenue;
+      cumulativeCollected += dayCollected;
 
       return {
         date,
@@ -1446,7 +1449,10 @@ export class SupabaseStorage implements IStorage {
         cumulativeProfit: Math.round(cumulativeProfit * 100) / 100,
         revenue: Math.round(dayRevenue * 100) / 100,
         cumulativeRevenue: Math.round(cumulativeRevenue * 100) / 100,
-        collected: Math.round((revenueByDate[date]?.collected || 0) * 100) / 100,
+        collected: Math.round(dayCollected * 100) / 100,
+        cumulativeCollected: Math.round(cumulativeCollected * 100) / 100,
+        unpaid: Math.round((dayRevenue - dayCollected) * 100) / 100,
+        cumulativeUnpaid: Math.round((cumulativeRevenue - cumulativeCollected) * 100) / 100,
         cost: Math.round((profitsByDate[date]?.cost || 0) * 100) / 100,
       };
     });

@@ -100,7 +100,7 @@ function CustomTooltip({ active, payload, label }: any) {
 
   const isDollarMetric = (name: string) => {
     const lower = name.toLowerCase();
-    return lower.includes("revenue") || lower.includes("profit") || lower.includes("cost") || lower.includes("collected") || lower.includes("invoiced") || lower.includes("cumulative revenue");
+    return lower.includes("revenue") || lower.includes("profit") || lower.includes("cost") || lower.includes("collected") || lower.includes("invoiced") || lower.includes("paid") || lower.includes("unpaid");
   };
 
   return (
@@ -158,6 +158,37 @@ function CustomersMiniChart({ data }: { data: any[] }) {
         <Tooltip content={<CustomTooltip />} />
         <Area type="monotone" dataKey="activeCustomers" name="Active" stroke="#10b981" fill="url(#activeG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
         <Area type="monotone" dataKey="leads" name="Leads" stroke="#f59e0b" fill="url(#leadsG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function RevenueMiniChart({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-[10px] text-muted-foreground text-center py-4">No data</p>;
+  return (
+    <ResponsiveContainer width="100%" height={120}>
+      <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id="invoicedG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="paidG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="unpaidG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.5} />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 9 }} tickFormatter={(v: number) => `$${v}`} />
+        <Tooltip content={<CustomTooltip />} />
+        <Area type="monotone" dataKey="revenue" name="Invoiced" stroke="#3b82f6" fill="url(#invoicedG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+        <Area type="monotone" dataKey="collected" name="Paid" stroke="#10b981" fill="url(#paidG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+        <Area type="monotone" dataKey="unpaid" name="Unpaid" stroke="#ef4444" fill="url(#unpaidG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -476,9 +507,13 @@ export default function Dashboard() {
               <div className="flex items-center gap-1.5 mb-1">
                 <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
                 <span className="text-xs font-medium text-muted-foreground">Revenue</span>
-                <span className="ml-auto text-sm font-bold text-foreground">${timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeRevenue.toLocaleString() : 0}</span>
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" /><span className="text-muted-foreground">Invoiced</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeRevenue ?? 0).toLocaleString() : 0}</span></span>
+                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-muted-foreground">Paid</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeCollected ?? 0).toLocaleString() : 0}</span></span>
+                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" /><span className="text-muted-foreground">Unpaid</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeUnpaid ?? 0).toLocaleString() : 0}</span></span>
+                </div>
               </div>
-              <MiniChart data={timeSeriesData} dataKey="revenue" stroke="#10b981" gradientId="revenueG" gradientColor="#10b981" yPrefix="$" />
+              <RevenueMiniChart data={timeSeriesData} />
             </CardContent>
           </Card>
           <Card data-testid="chart-profit">
@@ -497,8 +532,8 @@ export default function Dashboard() {
                 <Users className="h-3.5 w-3.5 text-amber-500" />
                 <span className="text-xs font-medium text-muted-foreground">Customers</span>
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-muted-foreground">Active</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeActive : 0}</span></span>
-                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-muted-foreground">Leads</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeLeads : 0}</span></span>
+                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-muted-foreground">Active</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeActive ?? 0) : 0}</span></span>
+                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-muted-foreground">Leads</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeLeads ?? 0) : 0}</span></span>
                 </div>
               </div>
               <CustomersMiniChart data={timeSeriesData} />
