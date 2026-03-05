@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/auth";
-import { Plus, Search, Trash2, ShieldCheck, FileText, X, UserCheck, UserPlus } from "lucide-react";
+import { Plus, Search, Trash2, ShieldCheck, FileText, X, UserCheck, UserPlus, Link2, Copy, Check } from "lucide-react";
 import type { Customer } from "@shared/schema";
 import CustomerFormFields from "@/components/customer-form-fields";
 
@@ -30,6 +30,15 @@ export default function Customers() {
   const [form, setForm] = useState({ ...emptyForm });
   const [docFiles, setDocFiles] = useState<DocFile[]>([]);
   const docFileRef = useRef<HTMLInputElement>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const onboardingUrl = `${window.location.origin}/onboarding`;
+  const copyOnboardingLink = () => {
+    navigator.clipboard.writeText(onboardingUrl);
+    setLinkCopied(true);
+    toast({ title: "Onboarding link copied to clipboard" });
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({ queryKey: ["/api/customers"] });
   const { data: orders = [] } = useQuery<any[]>({ queryKey: ["/api/orders"] });
@@ -148,10 +157,19 @@ export default function Customers() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h1 className="text-2xl font-bold" data-testid="text-customers-title">Customers</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setForm({ ...emptyForm }); setDocFiles([]); } }}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-customer"><Plus className="h-4 w-4 mr-2" />Add Customer</Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={copyOnboardingLink}
+            data-testid="button-copy-onboarding-link"
+          >
+            {linkCopied ? <Check className="h-4 w-4 mr-2 text-green-600" /> : <Link2 className="h-4 w-4 mr-2" />}
+            {linkCopied ? "Link Copied!" : "Onboarding Link"}
+          </Button>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setForm({ ...emptyForm }); setDocFiles([]); } }}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-customer"><Plus className="h-4 w-4 mr-2" />Add Customer</Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
             <DialogHeader><DialogTitle>Add New Customer</DialogTitle></DialogHeader>
             <div className="overflow-y-auto flex-1 space-y-4 -mr-2 pr-2">
@@ -207,6 +225,7 @@ export default function Customers() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative">
