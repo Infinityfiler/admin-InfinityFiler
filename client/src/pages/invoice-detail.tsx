@@ -195,13 +195,33 @@ export default function InvoiceDetail() {
     window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
   };
 
-  const currentRate = exchangeRate?.rate || 0;
+  const liveRate = exchangeRate?.rate || 0;
+  const invoiceRate = invoice?.pkr_enabled ? Number(invoice.pkr_rate) || 0 : 0;
+  const invoiceTaxRate = invoice?.pkr_enabled ? Number(invoice.pkr_tax_rate) || 0 : 0;
+  const currentRate = invoiceRate > 0 ? invoiceRate : liveRate;
+
+  const selectedItemHasTax = (() => {
+    if (!payServiceDesc || payServiceDesc === "general") return false;
+    const itemId = Number(payServiceDesc);
+    const matchedItem = !isNaN(itemId) ? items.find(i => i.id === itemId) : items.find(i => i.description === payServiceDesc);
+    return matchedItem?.currency_tax === true;
+  })();
+
+  const getEffectiveRate = (forTaxedService: boolean) => {
+    if (!invoiceRate || invoiceRate <= 0) return liveRate;
+    if (forTaxedService && invoiceTaxRate > 0) {
+      return invoiceRate * (1 + invoiceTaxRate / 100);
+    }
+    return invoiceRate;
+  };
+
+  const paymentEffectiveRate = getEffectiveRate(selectedItemHasTax);
 
   const handleUsdChange = (val: string) => {
     setPayAmountUsd(val);
     setLastEditedCurrency("usd");
-    if (val && currentRate > 0) {
-      setPayAmountPkr((Number(val) * currentRate).toFixed(2));
+    if (val && paymentEffectiveRate > 0) {
+      setPayAmountPkr((Number(val) * paymentEffectiveRate).toFixed(2));
     } else {
       setPayAmountPkr("");
     }
@@ -210,8 +230,8 @@ export default function InvoiceDetail() {
   const handlePkrChange = (val: string) => {
     setPayAmountPkr(val);
     setLastEditedCurrency("pkr");
-    if (val && currentRate > 0) {
-      setPayAmountUsd((Number(val) / currentRate).toFixed(2));
+    if (val && paymentEffectiveRate > 0) {
+      setPayAmountUsd((Number(val) / paymentEffectiveRate).toFixed(2));
     } else {
       setPayAmountUsd("");
     }
@@ -233,11 +253,16 @@ export default function InvoiceDetail() {
     mutationFn: async () => {
       const usd = Number(payAmountUsd || 0);
       if (usd <= 0) throw new Error("Enter a valid amount");
+      let serviceDescription = payServiceDesc;
+      if (payServiceDesc && payServiceDesc !== "general") {
+        const matchedItem = items.find(i => i.id === Number(payServiceDesc));
+        serviceDescription = matchedItem?.description || payServiceDesc;
+      }
       const res = await apiRequest("POST", `/api/invoices/${id}/payments`, {
         amount_usd: usd,
         amount_pkr: Number(payAmountPkr || 0),
-        pkr_rate: currentRate,
-        service_description: payServiceDesc,
+        pkr_rate: paymentEffectiveRate,
+        service_description: serviceDescription,
         note: payNote,
         next_due_date: payNextDueDate,
       });
@@ -1269,27 +1294,54 @@ export default function InvoiceDetail() {
                 />
               </div>
             </div>
-            {currentRate > 0 && (
-              <p className="text-[10px] text-muted-foreground -mt-2">
-                Rate: 1 USD = {currentRate.toFixed(2)} PKR
-                {lastEditedCurrency === "pkr" && payAmountPkr ? " (converted from PKR)" : ""}
-                {lastEditedCurrency === "usd" && payAmountUsd ? " (converted from USD)" : ""}
+            {paymentEffectiveRate > 0 && (
+              <p className="text-[10px] text-muted-foreground -mt-2" data-testid="text-payment-rate-info">
+                {invoiceRate > 0 ? (
+                  <>
+                    Rate: 1 USD = {invoiceRate.toFixed(2)} PKR (invoice rate)
+                    {selectedItemHasTax && invoiceTaxRate > 0 ? ` + ${invoiceTaxRate}% tax = ${paymentEffectiveRate.toFixed(2)} PKR` : ""}
+                  </>
+                ) : (
+                  <>Rate: 1 USD = {liveRate.toFixed(2)} PKR (live rate)</>
+                )}
+                {lastEditedCurrency === "pkr" && payAmountPkr ? " — converted from PKR" : ""}
+                {lastEditedCurrency === "usd" && payAmountUsd ? " — converted from USD" : ""}
               </p>
             )}
 
             <div>
               <Label className="text-xs">For Service</Label>
-              <Select value={payServiceDesc} onValueChange={setPayServiceDesc}>
+              <Select value={payServiceDesc} onValueChange={(val) => {
+                setPayServiceDesc(val);
+                const isNewTaxed = (() => {
+                  if (!val || val === "general") return false;
+                  const matchedItem = items.find(i => i.id === Number(val));
+                  return matchedItem?.currency_tax === true;
+                })();
+                const newRate = getEffectiveRate(isNewTaxed);
+                if (newRate > 0) {
+                  if (lastEditedCurrency === "usd" && payAmountUsd) {
+                    setPayAmountPkr((Number(payAmountUsd) * newRate).toFixed(2));
+                  } else if (lastEditedCurrency === "pkr" && payAmountPkr) {
+                    setPayAmountUsd((Number(payAmountPkr) / newRate).toFixed(2));
+                  }
+                }
+              }}>
                 <SelectTrigger><SelectValue placeholder="Select service (optional)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="general">General Payment</SelectItem>
                   {items.filter(i => Number(i.unit_price) > 0).map((item) => (
-                    <SelectItem key={item.id} value={item.description}>
-                      {item.description} (${Number(item.total).toFixed(2)})
+                    <SelectItem key={item.id} value={String(item.id)}>
+                      {item.description} (${Number(item.total).toFixed(2)}){invoice?.pkr_enabled && item.currency_tax ? " — Tax" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {invoice?.pkr_enabled && selectedItemHasTax && (
+                <p className="text-[10px] text-emerald-600 mt-1 font-medium" data-testid="text-currency-tax-indicator">
+                  Currency conversion tax ({invoiceTaxRate}%) applied to this service
+                </p>
+              )}
             </div>
 
             <div>
