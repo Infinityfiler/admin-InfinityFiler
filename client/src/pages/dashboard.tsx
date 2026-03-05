@@ -13,13 +13,10 @@ import { usePagination } from "@/hooks/use-pagination";
 import PaginationControls from "@/components/pagination-controls";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   AreaChart,
   Area,
 } from "recharts";
@@ -119,113 +116,22 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-function OrdersChart({ data }: { data: any[] }) {
-  if (!data.length) return <p className="text-sm text-muted-foreground text-center py-8">No data available for this period</p>;
+function MiniChart({ data, dataKey, stroke, gradientId, gradientColor, yPrefix }: { data: any[]; dataKey: string; stroke: string; gradientId: string; gradientColor: string; yPrefix?: string }) {
+  if (!data.length) return <p className="text-[10px] text-muted-foreground text-center py-4">No data</p>;
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+    <ResponsiveContainer width="100%" height={120}>
+      <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
         <defs>
-          <linearGradient id="ordersGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="cumOrdersGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={gradientColor} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={gradientColor} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis dataKey="date" tickFormatter={formatChartDate} className="text-xs" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="daily" className="text-xs" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="cumulative" orientation="right" className="text-xs" tick={{ fontSize: 11 }} />
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.5} />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 9 }} tickFormatter={yPrefix ? (v: number) => `${yPrefix}${v}` : undefined} />
         <Tooltip content={<CustomTooltip />} />
-        <Legend wrapperStyle={{ fontSize: "12px" }} />
-        <Area yAxisId="daily" type="monotone" dataKey="orders" name="Daily Orders" stroke="#3b82f6" fill="url(#ordersGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-        <Line yAxisId="cumulative" type="monotone" dataKey="cumulativeOrders" name="Total Orders" stroke="#8b5cf6" strokeWidth={2} dot={false} strokeDasharray="5 5" />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
-function ProfitChart({ data }: { data: any[] }) {
-  if (!data.length) return <p className="text-sm text-muted-foreground text-center py-8">No data available for this period</p>;
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <defs>
-          <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis dataKey="date" tickFormatter={formatChartDate} className="text-xs" tick={{ fontSize: 11 }} />
-        <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
-        <Tooltip content={<CustomTooltip />} />
-        <Legend wrapperStyle={{ fontSize: "12px" }} />
-        <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#10b981" fill="url(#revenueGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-        <Area type="monotone" dataKey="profit" name="Profit" stroke="#6366f1" fill="url(#profitGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-        <Line type="monotone" dataKey="cost" name="Cost" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
-function LeadsChart({ data }: { data: any[] }) {
-  if (!data.length) return <p className="text-sm text-muted-foreground text-center py-8">No data available for this period</p>;
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <defs>
-          <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="cumLeadsGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#ec4899" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis dataKey="date" tickFormatter={formatChartDate} className="text-xs" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="daily" className="text-xs" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="cumulative" orientation="right" className="text-xs" tick={{ fontSize: 11 }} />
-        <Tooltip content={<CustomTooltip />} />
-        <Legend wrapperStyle={{ fontSize: "12px" }} />
-        <Area yAxisId="daily" type="monotone" dataKey="leads" name="New Customers" stroke="#f59e0b" fill="url(#leadsGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-        <Line yAxisId="cumulative" type="monotone" dataKey="cumulativeLeads" name="Total Customers" stroke="#ec4899" strokeWidth={2} dot={false} strokeDasharray="5 5" />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
-function RevenueChart({ data }: { data: any[] }) {
-  if (!data.length) return <p className="text-sm text-muted-foreground text-center py-8">No data available for this period</p>;
-  return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <defs>
-          <linearGradient id="invoicedGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="collectedGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis dataKey="date" tickFormatter={formatChartDate} className="text-xs" tick={{ fontSize: 11 }} />
-        <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
-        <Tooltip content={<CustomTooltip />} />
-        <Legend wrapperStyle={{ fontSize: "12px" }} />
-        <Area type="monotone" dataKey="revenue" name="Invoiced" stroke="#0ea5e9" fill="url(#invoicedGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-        <Area type="monotone" dataKey="collected" name="Collected" stroke="#22c55e" fill="url(#collectedGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-        <Line type="monotone" dataKey="cumulativeRevenue" name="Cumulative Revenue" stroke="#7c3aed" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+        <Area type="monotone" dataKey={dataKey} stroke={stroke} fill={`url(#${gradientId})`} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -367,7 +273,6 @@ export default function Dashboard() {
 
   const { data: chartData, isLoading: chartsLoading, isError: chartsError } = useQuery<any>({
     queryKey: [chartsUrl],
-    refetchInterval: 60000,
   });
 
   const queryClient = useQueryClient();
@@ -516,6 +421,63 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {chartsLoading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}><CardContent className="p-3"><Skeleton className="h-[140px]" /></CardContent></Card>
+          ))}
+        </div>
+      ) : chartsError ? (
+        <Card>
+          <CardContent className="p-3 text-center">
+            <p className="text-xs text-muted-foreground">Unable to load charts. Press Refresh Database to retry.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="charts-row">
+          <Card data-testid="chart-orders">
+            <CardContent className="p-3 pb-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />
+                <span className="text-xs font-medium text-muted-foreground">Orders</span>
+                <span className="ml-auto text-sm font-bold text-foreground">{timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeOrders : 0}</span>
+              </div>
+              <MiniChart data={timeSeriesData} dataKey="orders" stroke="#3b82f6" gradientId="ordersG" gradientColor="#3b82f6" />
+            </CardContent>
+          </Card>
+          <Card data-testid="chart-revenue">
+            <CardContent className="p-3 pb-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-xs font-medium text-muted-foreground">Revenue</span>
+                <span className="ml-auto text-sm font-bold text-foreground">${timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeRevenue.toLocaleString() : 0}</span>
+              </div>
+              <MiniChart data={timeSeriesData} dataKey="revenue" stroke="#10b981" gradientId="revenueG" gradientColor="#10b981" yPrefix="$" />
+            </CardContent>
+          </Card>
+          <Card data-testid="chart-profit">
+            <CardContent className="p-3 pb-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <TrendingUp className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="text-xs font-medium text-muted-foreground">Profit</span>
+                <span className="ml-auto text-sm font-bold text-foreground">${timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeProfit.toLocaleString() : 0}</span>
+              </div>
+              <MiniChart data={timeSeriesData} dataKey="profit" stroke="#6366f1" gradientId="profitG" gradientColor="#6366f1" yPrefix="$" />
+            </CardContent>
+          </Card>
+          <Card data-testid="chart-leads">
+            <CardContent className="p-3 pb-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Users className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-xs font-medium text-muted-foreground">Customers</span>
+                <span className="ml-auto text-sm font-bold text-foreground">{timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeLeads : 0}</span>
+              </div>
+              <MiniChart data={timeSeriesData} dataKey="leads" stroke="#f59e0b" gradientId="leadsG" gradientColor="#f59e0b" />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map((card) => (
           <Link key={card.title} href={card.href}>
@@ -536,74 +498,6 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
-
-      {chartsLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-[280px]" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : chartsError ? (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-sm text-muted-foreground">Unable to load charts. Data will retry automatically.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card data-testid="chart-orders">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4 text-blue-500" />
-                <CardTitle className="text-base">Orders Trend</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <OrdersChart data={timeSeriesData} />
-            </CardContent>
-          </Card>
-
-          <Card data-testid="chart-revenue">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-emerald-500" />
-                <CardTitle className="text-base">Revenue & Collections</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <RevenueChart data={timeSeriesData} />
-            </CardContent>
-          </Card>
-
-          <Card data-testid="chart-profit">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-indigo-500" />
-                <CardTitle className="text-base">Profit & Loss</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ProfitChart data={timeSeriesData} />
-            </CardContent>
-          </Card>
-
-          <Card data-testid="chart-leads">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-amber-500" />
-                <CardTitle className="text-base">Customer Growth</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <LeadsChart data={timeSeriesData} />
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RecentOrdersSection orders={stats?.recentOrders || []} />
