@@ -718,12 +718,12 @@ export default function Partners() {
                                 {c.allow_invoice_access ? "Invoices Visible" : "Invoices Hidden"}
                               </span>
                               <Switch
-                                checked={c.allow_invoice_access === true}
+                                checked={!c.allow_invoice_access}
                                 onCheckedChange={async (checked) => {
                                   try {
-                                    await apiRequest("PATCH", `/api/customers/${c.id}/invoice-access`, { allow_invoice_access: checked });
+                                    await apiRequest("PATCH", `/api/customers/${c.id}/invoice-access`, { allow_invoice_access: !checked });
                                     queryClient.invalidateQueries({ queryKey: ["/api/referral-partners", selectedPartner.id, "customers"] });
-                                    toast({ title: checked ? "Invoice access granted" : "Invoice access revoked" });
+                                    toast({ title: !checked ? "Invoice access granted" : "Invoice access hidden" });
                                   } catch (e) {
                                     toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
                                   }
