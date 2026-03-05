@@ -14,6 +14,7 @@ export interface Customer {
   referral_code: string;
   referral_username: string;
   auth_user_id: string | null;
+  allow_invoice_access: boolean;
   notes: string;
   created_at: string;
 }

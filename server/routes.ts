@@ -122,6 +122,23 @@ export async function registerRoutes(
     } catch (e) { res.status(400).json({ message: (e as Error).message }); }
   });
 
+  app.patch("/api/customers/:id/invoice-access", requireAdmin, async (req, res) => {
+    try {
+      const { allow_invoice_access } = req.body;
+      if (typeof allow_invoice_access !== "boolean") {
+        return res.status(400).json({ message: "allow_invoice_access must be a boolean" });
+      }
+      const { data, error } = await supabase
+        .from("customers")
+        .update({ allow_invoice_access })
+        .eq("id", Number(req.params.id))
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (e) { res.status(400).json({ message: (e as Error).message }); }
+  });
+
   app.delete("/api/customers/:id", requireAdmin, async (req, res) => {
     try {
       await storage.deleteCustomer(Number(req.params.id));
@@ -1768,7 +1785,7 @@ export async function registerRoutes(
       let hideInvoices = false;
       if (customer?.referral_partner_id) {
         const partner = await storage.getReferralPartner(customer.referral_partner_id);
-        if (partner?.hide_invoices) hideInvoices = true;
+        if (partner?.hide_invoices && !customer.allow_invoice_access) hideInvoices = true;
       }
 
       res.json({
@@ -1826,7 +1843,7 @@ export async function registerRoutes(
       const customer = await storage.getCustomer(link.customer_id);
       if (customer?.referral_partner_id) {
         const partner = await storage.getReferralPartner(customer.referral_partner_id);
-        if (partner?.hide_invoices) return res.json([]);
+        if (partner?.hide_invoices && !customer.allow_invoice_access) return res.json([]);
       }
 
       await storage.logLinkActivity({
@@ -1868,7 +1885,7 @@ export async function registerRoutes(
       const orderCustomer = await storage.getCustomer(link.customer_id);
       if (orderCustomer?.referral_partner_id) {
         const rp = await storage.getReferralPartner(orderCustomer.referral_partner_id);
-        if (rp?.hide_invoices) shouldHideInvoices = true;
+        if (rp?.hide_invoices && !orderCustomer.allow_invoice_access) shouldHideInvoices = true;
       }
 
       const invoice = (!shouldHideInvoices && order.invoice_id) ? await storage.getInvoice(order.invoice_id) : null;
@@ -1889,7 +1906,7 @@ export async function registerRoutes(
       const cust = await storage.getCustomer(link.customer_id);
       if (cust?.referral_partner_id) {
         const p = await storage.getReferralPartner(cust.referral_partner_id);
-        if (p?.hide_invoices) return res.status(403).json({ message: "Invoice access is disabled" });
+        if (p?.hide_invoices && !cust.allow_invoice_access) return res.status(403).json({ message: "Invoice access is disabled" });
       }
 
       const invoice = await storage.getInvoice(Number(req.params.invoiceId));
@@ -2381,7 +2398,7 @@ export async function registerRoutes(
       const proofCustomer = await storage.getCustomer(link.customer_id);
       if (proofCustomer?.referral_partner_id) {
         const pp = await storage.getReferralPartner(proofCustomer.referral_partner_id);
-        if (pp?.hide_invoices) return res.status(403).json({ message: "Invoice access is disabled" });
+        if (pp?.hide_invoices && !proofCustomer.allow_invoice_access) return res.status(403).json({ message: "Invoice access is disabled" });
       }
 
       const invoice = await storage.getInvoice(Number(req.params.invoiceId));

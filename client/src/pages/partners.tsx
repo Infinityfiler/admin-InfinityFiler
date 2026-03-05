@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/auth";
-import { Plus, Search, Trash2, Edit, Copy, Users, ShoppingCart, Eye, Settings2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Search, Trash2, Edit, Copy, Users, ShoppingCart, Eye, Settings2, FileText } from "lucide-react";
 import type { ReferralPartner, Customer, Order, PartnerServiceRate, Service } from "@shared/schema";
 
 type PartnerFormData = {
@@ -465,7 +466,7 @@ export default function Partners() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <Badge variant="outline" className="text-xs font-mono cursor-pointer" onClick={() => copyCode(partner.referral_code)} data-testid={`badge-code-${partner.id}`}>
                     {partner.referral_code}
                     <Copy className="h-3 w-3 ml-1" />
@@ -694,19 +695,46 @@ export default function Partners() {
                 <h3 className="font-semibold flex items-center gap-2 mb-3">
                   <Users className="h-4 w-4" /> Referred Customers ({partnerCustomers.length})
                 </h3>
+                {selectedPartner.hide_invoices && partnerCustomers.length > 0 && (
+                  <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    Invoices are hidden for this partner. Toggle access per customer below.
+                  </p>
+                )}
                 {partnerCustomers.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No customers referred yet.</p>
                 ) : (
                   <div className="space-y-2">
                     {partnerCustomers.map(c => (
-                      <div key={c.id} className="flex items-center justify-between p-2 bg-muted rounded-md text-sm" data-testid={`row-referred-customer-${c.id}`}>
-                        <div>
+                      <div key={c.id} className="flex items-center justify-between p-2 bg-muted rounded-md text-sm gap-2" data-testid={`row-referred-customer-${c.id}`}>
+                        <div className="min-w-0 flex-1">
                           <span className="font-medium">{c.individual_name}</span>
                           {c.company_name && <span className="text-muted-foreground ml-2">({c.company_name})</span>}
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => { setDetailOpen(false); navigate(`/customers/${c.id}`); }}>
-                          View
-                        </Button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {selectedPartner.hide_invoices && (
+                            <div className="flex items-center gap-1.5" data-testid={`toggle-invoice-access-${c.id}`}>
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                {c.allow_invoice_access ? "Invoices Visible" : "Invoices Hidden"}
+                              </span>
+                              <Switch
+                                checked={c.allow_invoice_access === true}
+                                onCheckedChange={async (checked) => {
+                                  try {
+                                    await apiRequest("PATCH", `/api/customers/${c.id}/invoice-access`, { allow_invoice_access: checked });
+                                    queryClient.invalidateQueries({ queryKey: ["/api/referral-partners", selectedPartner.id, "customers"] });
+                                    toast({ title: checked ? "Invoice access granted" : "Invoice access revoked" });
+                                  } catch (e) {
+                                    toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+                                  }
+                                }}
+                              />
+                            </div>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => { setDetailOpen(false); navigate(`/customers/${c.id}`); }}>
+                            View
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -611,6 +611,10 @@ export async function runMigrations() {
       ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS partner_discount_label TEXT DEFAULT '';
     `);
 
+    await client.query(`
+      ALTER TABLE customers ADD COLUMN IF NOT EXISTS allow_invoice_access BOOLEAN DEFAULT false;
+    `);
+
     console.log("All tables created successfully, RLS enabled");
 
     const { rows } = await client.query("SELECT COUNT(*) as count FROM company_settings");
