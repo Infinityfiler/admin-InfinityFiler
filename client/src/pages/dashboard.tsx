@@ -11,6 +11,18 @@ import { Users, ShoppingCart, FileText, DollarSign, Clock, ArrowRight, CheckCirc
 import { useState, useMemo } from "react";
 import { usePagination } from "@/hooks/use-pagination";
 import PaginationControls from "@/components/pagination-controls";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  AreaChart,
+  Area,
+} from "recharts";
 
 function StatusBadge({ status, type }: { status: string; type: "order" | "invoice" }) {
   if (type === "order") {
@@ -79,6 +91,144 @@ function buildQS(sd: string, ed: string) {
   if (ed) params.set("endDate", ed);
   const qs = params.toString();
   return qs ? `?${qs}` : "";
+}
+
+function formatChartDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function CustomTooltip({ active, payload, label }: any) {
+  if (!active || !payload || !payload.length) return null;
+
+  const isDollarMetric = (name: string) => {
+    const lower = name.toLowerCase();
+    return lower.includes("revenue") || lower.includes("profit") || lower.includes("cost") || lower.includes("collected") || lower.includes("invoiced") || lower.includes("cumulative revenue");
+  };
+
+  return (
+    <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
+      <p className="font-medium text-foreground mb-1">{formatChartDate(label)}</p>
+      {payload.map((entry: any, idx: number) => (
+        <p key={idx} style={{ color: entry.color }} className="flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+          {entry.name}: {isDollarMetric(entry.name) ? `$${Number(entry.value).toLocaleString()}` : entry.value}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function OrdersChart({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-sm text-muted-foreground text-center py-8">No data available for this period</p>;
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+        <defs>
+          <linearGradient id="ordersGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="cumOrdersGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.15} />
+            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} className="text-xs" tick={{ fontSize: 11 }} />
+        <YAxis yAxisId="daily" className="text-xs" tick={{ fontSize: 11 }} />
+        <YAxis yAxisId="cumulative" orientation="right" className="text-xs" tick={{ fontSize: 11 }} />
+        <Tooltip content={<CustomTooltip />} />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+        <Area yAxisId="daily" type="monotone" dataKey="orders" name="Daily Orders" stroke="#3b82f6" fill="url(#ordersGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+        <Line yAxisId="cumulative" type="monotone" dataKey="cumulativeOrders" name="Total Orders" stroke="#8b5cf6" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function ProfitChart({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-sm text-muted-foreground text-center py-8">No data available for this period</p>;
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+        <defs>
+          <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} className="text-xs" tick={{ fontSize: 11 }} />
+        <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
+        <Tooltip content={<CustomTooltip />} />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+        <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#10b981" fill="url(#revenueGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+        <Area type="monotone" dataKey="profit" name="Profit" stroke="#6366f1" fill="url(#profitGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+        <Line type="monotone" dataKey="cost" name="Cost" stroke="#ef4444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function LeadsChart({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-sm text-muted-foreground text-center py-8">No data available for this period</p>;
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+        <defs>
+          <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="cumLeadsGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#ec4899" stopOpacity={0.15} />
+            <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} className="text-xs" tick={{ fontSize: 11 }} />
+        <YAxis yAxisId="daily" className="text-xs" tick={{ fontSize: 11 }} />
+        <YAxis yAxisId="cumulative" orientation="right" className="text-xs" tick={{ fontSize: 11 }} />
+        <Tooltip content={<CustomTooltip />} />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+        <Area yAxisId="daily" type="monotone" dataKey="leads" name="New Customers" stroke="#f59e0b" fill="url(#leadsGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+        <Line yAxisId="cumulative" type="monotone" dataKey="cumulativeLeads" name="Total Customers" stroke="#ec4899" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function RevenueChart({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-sm text-muted-foreground text-center py-8">No data available for this period</p>;
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+        <defs>
+          <linearGradient id="invoicedGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="collectedGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} className="text-xs" tick={{ fontSize: 11 }} />
+        <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
+        <Tooltip content={<CustomTooltip />} />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+        <Area type="monotone" dataKey="revenue" name="Invoiced" stroke="#0ea5e9" fill="url(#invoicedGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+        <Area type="monotone" dataKey="collected" name="Collected" stroke="#22c55e" fill="url(#collectedGradient)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+        <Line type="monotone" dataKey="cumulativeRevenue" name="Cumulative Revenue" stroke="#7c3aed" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
 }
 
 function RecentOrdersSection({ orders }: { orders: any[] }) {
@@ -209,9 +359,15 @@ export default function Dashboard() {
   }, [rangePreset, customStart, customEnd]);
 
   const dashboardUrl = `/api/dashboard${buildQS(startDate, endDate)}`;
+  const chartsUrl = `/api/dashboard/charts${buildQS(startDate, endDate)}`;
 
   const { data: stats, isLoading, isError, error } = useQuery<any>({
     queryKey: [dashboardUrl],
+  });
+
+  const { data: chartData, isLoading: chartsLoading, isError: chartsError } = useQuery<any>({
+    queryKey: [chartsUrl],
+    refetchInterval: 60000,
   });
 
   const queryClient = useQueryClient();
@@ -226,6 +382,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Refresh failed");
       const data = await res.json();
       queryClient.setQueryData([dashboardUrl], data.stats);
+      queryClient.invalidateQueries({ queryKey: [chartsUrl] });
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       queryClient.invalidateQueries({ queryKey: ["/api/compliance-records"] });
       queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
@@ -296,6 +453,8 @@ export default function Dashboard() {
     { title: "Overdue Invoices", value: stats?.overdueInvoices || 0, icon: AlertTriangle, color: "text-red-500", href: "/invoices" },
   ];
 
+  const timeSeriesData = chartData?.chartData || [];
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -319,6 +478,7 @@ export default function Dashboard() {
               value={rangePreset}
               onChange={(e) => setRangePreset(e.target.value)}
               className="h-9 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              data-testid="select-date-range"
             >
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
@@ -337,6 +497,7 @@ export default function Dashboard() {
                   value={customStart}
                   onChange={(e) => setCustomStart(e.target.value)}
                   className="h-9 w-[150px]"
+                  data-testid="input-custom-start"
                 />
                 <span className="text-sm text-muted-foreground">to</span>
                 <Input
@@ -344,6 +505,7 @@ export default function Dashboard() {
                   value={customEnd}
                   onChange={(e) => setCustomEnd(e.target.value)}
                   className="h-9 w-[150px]"
+                  data-testid="input-custom-end"
                 />
               </div>
             )}
@@ -374,6 +536,74 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
+
+      {chartsLoading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-[280px]" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : chartsError ? (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-sm text-muted-foreground">Unable to load charts. Data will retry automatically.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card data-testid="chart-orders">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-blue-500" />
+                <CardTitle className="text-base">Orders Trend</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <OrdersChart data={timeSeriesData} />
+            </CardContent>
+          </Card>
+
+          <Card data-testid="chart-revenue">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-500" />
+                <CardTitle className="text-base">Revenue & Collections</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <RevenueChart data={timeSeriesData} />
+            </CardContent>
+          </Card>
+
+          <Card data-testid="chart-profit">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-indigo-500" />
+                <CardTitle className="text-base">Profit & Loss</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ProfitChart data={timeSeriesData} />
+            </CardContent>
+          </Card>
+
+          <Card data-testid="chart-leads">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-amber-500" />
+                <CardTitle className="text-base">Customer Growth</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <LeadsChart data={timeSeriesData} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RecentOrdersSection orders={stats?.recentOrders || []} />

@@ -116,7 +116,7 @@ Required secrets (set in Replit Secrets):
 ## Key Features
 
 - Pagination on all data listing pages — configurable page sizes (20, 50, 100, 500) with first/prev/next/last navigation, page info display. Reusable `usePagination` hook + `PaginationControls` component. Applied to: Customers (Leads + Active independently), Orders, Invoices, Dashboard recent items, Services, Bundles, Partners, Referrals, Admin Users, Emails, Customer Links, Compliance, Profit & Loss entries. Activity logs on order detail and customer detail are collapsible (collapsed by default with expand toggle). Service card details are also collapsible.
-- Dashboard with stats, auto-overdue marking, compliance sync
+- Dashboard with stats, auto-overdue marking, compliance sync, and interactive line/area charts (Orders Trend, Revenue & Collections, Profit & Loss, Customer Growth) powered by Recharts — auto-refresh every 60s, date-range aware, with gradient fills, cumulative trend lines, and custom tooltips. API: `GET /api/dashboard/charts`
 - Customer management with referral tracking
 - Services management with dynamic categories (type-ahead input with suggestions, supports custom categories) and explicit service type toggle (State Specific / General)
 - Orders with services, documents, activity logs, compliance

@@ -160,6 +160,7 @@ export interface IStorage {
   updatePaymentProof(id: number, data: Partial<PaymentProof>): Promise<PaymentProof>;
 
   getDashboardStats(): Promise<any>;
+  getDashboardChartData(startDate?: string, endDate?: string): Promise<any>;
   markOverdueInvoices(): Promise<number>;
   generateComplianceReminders(): Promise<number>;
   autoCreateComplianceRecords(orderId: number): Promise<void>;
@@ -1327,6 +1328,115 @@ export class SupabaseStorage implements IStorage {
       recentOrders: allOrders.slice(0, 5),
       recentInvoices: allInvoices.slice(0, 5),
     };
+  }
+
+  async getDashboardChartData(startDate?: string, endDate?: string): Promise<any> {
+    let ordersQuery = supabase.from("orders").select("id, created_at, status").order("created_at", { ascending: true });
+    let customersQuery = supabase.from("customers").select("id, created_at, source").order("created_at", { ascending: true });
+    let profitQuery = supabase.from("profit_loss_entries").select("id, entry_date, total_profit, invoice_total, total_cost").order("entry_date", { ascending: true });
+    let invoicesQuery = supabase.from("invoices").select("id, created_at, total, amount_paid, status").order("created_at", { ascending: true });
+
+    if (startDate) {
+      ordersQuery = ordersQuery.gte("created_at", startDate);
+      customersQuery = customersQuery.gte("created_at", startDate);
+      profitQuery = profitQuery.gte("entry_date", startDate);
+      invoicesQuery = invoicesQuery.gte("created_at", startDate);
+    }
+    if (endDate) {
+      const endDatePlusOne = new Date(endDate);
+      endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
+      const endStr = endDatePlusOne.toISOString().split("T")[0];
+      ordersQuery = ordersQuery.lt("created_at", endStr);
+      customersQuery = customersQuery.lt("created_at", endStr);
+      profitQuery = profitQuery.lt("entry_date", endStr);
+      invoicesQuery = invoicesQuery.lt("created_at", endStr);
+    }
+
+    const [orders, customers, profits, invoices] = await Promise.all([
+      ordersQuery,
+      customersQuery,
+      profitQuery,
+      invoicesQuery,
+    ]);
+
+    if (orders.error) throw new Error(`Orders query failed: ${orders.error.message}`);
+    if (customers.error) throw new Error(`Customers query failed: ${customers.error.message}`);
+    if (profits.error) throw new Error(`Profits query failed: ${profits.error.message}`);
+    if (invoices.error) throw new Error(`Invoices query failed: ${invoices.error.message}`);
+
+    const allOrders = orders.data || [];
+    const allCustomers = customers.data || [];
+    const allProfits = profits.data || [];
+    const allInvoices = invoices.data || [];
+
+    const ordersByDate: Record<string, number> = {};
+    for (const o of allOrders) {
+      const d = new Date(o.created_at).toISOString().split("T")[0];
+      ordersByDate[d] = (ordersByDate[d] || 0) + 1;
+    }
+
+    const leadsByDate: Record<string, number> = {};
+    for (const c of allCustomers) {
+      const d = new Date(c.created_at).toISOString().split("T")[0];
+      leadsByDate[d] = (leadsByDate[d] || 0) + 1;
+    }
+
+    const profitsByDate: Record<string, { revenue: number; cost: number; profit: number }> = {};
+    for (const p of allProfits) {
+      const d = p.entry_date;
+      if (!profitsByDate[d]) profitsByDate[d] = { revenue: 0, cost: 0, profit: 0 };
+      profitsByDate[d].revenue += Number(p.invoice_total || 0);
+      profitsByDate[d].cost += Number(p.total_cost || 0);
+      profitsByDate[d].profit += Number(p.total_profit || 0);
+    }
+
+    const revenueByDate: Record<string, { collected: number; invoiced: number }> = {};
+    for (const inv of allInvoices) {
+      const d = new Date(inv.created_at).toISOString().split("T")[0];
+      if (!revenueByDate[d]) revenueByDate[d] = { collected: 0, invoiced: 0 };
+      revenueByDate[d].invoiced += Number(inv.total || 0);
+      revenueByDate[d].collected += Number(inv.amount_paid || 0);
+    }
+
+    const allDates = new Set([
+      ...Object.keys(ordersByDate),
+      ...Object.keys(leadsByDate),
+      ...Object.keys(profitsByDate),
+      ...Object.keys(revenueByDate),
+    ]);
+    const sortedDates = Array.from(allDates).sort();
+
+    let cumulativeOrders = 0;
+    let cumulativeLeads = 0;
+    let cumulativeProfit = 0;
+    let cumulativeRevenue = 0;
+
+    const chartData = sortedDates.map(date => {
+      const dayOrders = ordersByDate[date] || 0;
+      const dayLeads = leadsByDate[date] || 0;
+      const dayProfit = profitsByDate[date]?.profit || 0;
+      const dayRevenue = revenueByDate[date]?.invoiced || 0;
+      cumulativeOrders += dayOrders;
+      cumulativeLeads += dayLeads;
+      cumulativeProfit += dayProfit;
+      cumulativeRevenue += dayRevenue;
+
+      return {
+        date,
+        orders: dayOrders,
+        cumulativeOrders,
+        leads: dayLeads,
+        cumulativeLeads,
+        profit: Math.round(dayProfit * 100) / 100,
+        cumulativeProfit: Math.round(cumulativeProfit * 100) / 100,
+        revenue: Math.round(dayRevenue * 100) / 100,
+        cumulativeRevenue: Math.round(cumulativeRevenue * 100) / 100,
+        collected: Math.round((revenueByDate[date]?.collected || 0) * 100) / 100,
+        cost: Math.round((profitsByDate[date]?.cost || 0) * 100) / 100,
+      };
+    });
+
+    return { chartData };
   }
 
   async markOverdueInvoices(): Promise<number> {

@@ -68,6 +68,15 @@ export async function registerRoutes(
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
   });
 
+  app.get("/api/dashboard/charts", requireAdmin, async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      const data = await storage.getDashboardChartData(startDate, endDate);
+      res.json(data);
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
   app.get("/api/refresh-database", requireAdmin, async (req, res) => {
     try {
       const overdueCount = await storage.markOverdueInvoices();
