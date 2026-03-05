@@ -119,6 +119,7 @@ Required secrets (set in Replit Secrets):
 - Invoice editing with partner discount support: fetches partner rates, applies discounts on service selection, "Recalculate Discounts" button, discount info saved to DB
 - Customer portal shows per-item partner discount (original price struck through + discount label) on invoice detail and PDF export
 - Profit/Loss tracking per invoice (triggered on marking as paid)
+- Payment History with tax transparency: payment history tables (admin + customer portal + PDF exports) show Rate, Tax columns per payment — when a PKR payment is recorded against a taxed service, the tax rate and calculated tax amount are displayed. DB stores `pkr_base_rate` and `pkr_tax_rate` per payment.
 - Payment Proof system: customers upload proof via portal (Dropbox + WhatsApp), admin verifies/declines on invoice detail with full/partial payment recording
   - DB table: `payment_proofs` (invoice_id, customer_id, amount_claimed, file_name, dropbox_path, dropbox_view_link, status, admin_note)
   - Portal endpoint: `POST /api/portal/:token/invoices/:invoiceId/payment-proof` (multipart upload)

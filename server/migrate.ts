@@ -619,6 +619,11 @@ export async function runMigrations() {
       UPDATE services SET type = 'general' WHERE category NOT IN ('LLC Formation', 'C-Corp Formation') AND (type = 'state_specific' OR type IS NULL);
     `);
 
+    await client.query(`
+      ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS pkr_base_rate NUMERIC DEFAULT 0;
+      ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS pkr_tax_rate NUMERIC DEFAULT 0;
+    `);
+
     console.log("All tables created successfully, RLS enabled");
 
     const { rows } = await client.query("SELECT COUNT(*) as count FROM company_settings");

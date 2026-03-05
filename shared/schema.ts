@@ -150,6 +150,8 @@ export interface InvoicePayment {
   amount_usd: number;
   amount_pkr: number;
   pkr_rate: number;
+  pkr_base_rate: number;
+  pkr_tax_rate: number;
   service_description: string;
   note: string;
   payment_date: string;

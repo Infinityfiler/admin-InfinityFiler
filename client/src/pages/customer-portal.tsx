@@ -1322,18 +1322,31 @@ function InvoiceDetailView({
             <th style="padding:8px;text-align:left;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Date</th>
             <th style="padding:8px;text-align:right;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">USD</th>
             <th style="padding:8px;text-align:right;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">PKR</th>
+            <th style="padding:8px;text-align:right;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Rate</th>
+            <th style="padding:8px;text-align:right;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Tax</th>
+            <th style="padding:8px;text-align:left;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Service</th>
             <th style="padding:8px;text-align:left;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Note</th>
           </tr>
         </thead>
         <tbody>
-          ${payments.map(p => `
+          ${payments.map(p => {
+            const hasTax = Number(p.pkr_tax_rate) > 0;
+            const baseRate = Number(p.pkr_base_rate) || Number(p.pkr_rate);
+            const taxRate = Number(p.pkr_tax_rate);
+            const taxAmount = hasTax && Number(p.amount_pkr) > 0
+              ? Number(p.amount_usd) * baseRate * (taxRate / 100)
+              : 0;
+            return `
             <tr>
               <td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#374151;">${new Date(p.payment_date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</td>
               <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;color:#374151;font-weight:600;">$${Number(p.amount_usd).toFixed(2)}</td>
               <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;color:#374151;">${Number(p.amount_pkr) > 0 ? `PKR ${Number(p.amount_pkr).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : '-'}</td>
+              <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;color:#374151;">${Number(p.pkr_rate) > 0 ? Number(p.pkr_rate).toFixed(2) : '-'}</td>
+              <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;color:${hasTax ? '#d97706' : '#6b7280'};">${hasTax ? `${taxRate}% (PKR ${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : '-'}</td>
+              <td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#6b7280;">${esc(p.service_description) || '-'}</td>
               <td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#6b7280;">${esc(p.note) || '-'}</td>
-            </tr>
-          `).join("")}
+            </tr>`;
+          }).join("")}
         </tbody>
       </table>
     </div>` : "";
@@ -1854,11 +1867,21 @@ function InvoiceDetailView({
                     <th className="text-left py-2 text-muted-foreground font-medium">Date</th>
                     <th className="text-right py-2 text-muted-foreground font-medium">USD</th>
                     <th className="text-right py-2 text-muted-foreground font-medium">PKR</th>
+                    <th className="text-right py-2 text-muted-foreground font-medium">Rate</th>
+                    <th className="text-right py-2 text-muted-foreground font-medium">Tax</th>
+                    <th className="text-left py-2 text-muted-foreground font-medium">Service</th>
                     <th className="text-left py-2 text-muted-foreground font-medium">Note</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payments.map(p => (
+                  {payments.map(p => {
+                    const hasTax = Number(p.pkr_tax_rate) > 0;
+                    const baseRate = Number(p.pkr_base_rate) || Number(p.pkr_rate);
+                    const taxRate = Number(p.pkr_tax_rate);
+                    const taxAmount = hasTax && Number(p.amount_pkr) > 0
+                      ? Number(p.amount_usd) * baseRate * (taxRate / 100)
+                      : 0;
+                    return (
                     <tr key={p.id} className="border-b last:border-0">
                       <td className="py-2 text-foreground">
                         {new Date(p.payment_date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
@@ -1867,9 +1890,21 @@ function InvoiceDetailView({
                       <td className="py-2 text-right text-muted-foreground">
                         {Number(p.amount_pkr) > 0 ? `PKR ${Number(p.amount_pkr).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "-"}
                       </td>
+                      <td className="py-2 text-right text-xs text-muted-foreground">
+                        {Number(p.pkr_rate) > 0 ? Number(p.pkr_rate).toFixed(2) : "-"}
+                      </td>
+                      <td className="py-2 text-right text-xs">
+                        {hasTax ? (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            {taxRate}% (PKR {taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                          </span>
+                        ) : <span className="text-muted-foreground">-</span>}
+                      </td>
+                      <td className="py-2 text-xs text-muted-foreground">{p.service_description || "-"}</td>
                       <td className="py-2 text-muted-foreground">{p.note || "-"}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

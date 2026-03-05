@@ -305,7 +305,7 @@ export async function registerRoutes(
       const invoice = await storage.getInvoice(invoiceId);
       if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
-      const { amount_usd, amount_pkr, pkr_rate, service_description, note, next_due_date } = req.body;
+      const { amount_usd, amount_pkr, pkr_rate, pkr_base_rate, pkr_tax_rate, service_description, note, next_due_date } = req.body;
       const usdAmount = Number(amount_usd || 0);
 
       if (usdAmount <= 0) {
@@ -325,6 +325,8 @@ export async function registerRoutes(
         amount_usd: usdAmount,
         amount_pkr: Number(amount_pkr || 0),
         pkr_rate: Number(pkr_rate || 0),
+        pkr_base_rate: Number(pkr_base_rate || 0),
+        pkr_tax_rate: Number(pkr_tax_rate || 0),
         service_description: service_description || "",
         note: note || "",
       });
