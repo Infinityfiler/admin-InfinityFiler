@@ -15,6 +15,8 @@ export interface Customer {
   referral_username: string;
   auth_user_id: string | null;
   allow_invoice_access: boolean;
+  interested_services: string[];
+  source: string;
   notes: string;
   created_at: string;
 }
@@ -29,6 +31,8 @@ export const insertCustomerSchema = z.object({
   residential_address: z.string().optional().default(""),
   referred_by: z.string().optional().default(""),
   referral_partner_id: z.number().nullable().optional().default(null),
+  interested_services: z.array(z.string()).optional().default([]),
+  source: z.string().optional().default("admin"),
   notes: z.string().optional().default(""),
 });
 

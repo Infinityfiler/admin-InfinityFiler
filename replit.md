@@ -7,6 +7,7 @@ A full-stack business management admin portal secured behind Supabase Auth with 
 ### Structure
 - **Admin Portal** (`/`) — React SPA secured behind Supabase Auth (role-based admin login). Accessed via `https://admin.infinityfiler.com`
 - **Customer Portal** (`/portal/:token`) — Public branded portal (no auth required), one link per customer. Tabs: Orders, Invoices, Profile (editable), Documents (upload/delete). All activity tracked.
+- **Onboarding Page** (`/onboarding`) — Public form (no auth) for customer self-registration. Collects personal info, services of interest, optional verification documents. Creates customer with `source: "onboarding"`. Shareable link.
 
 ### Tech Stack
 - **Frontend**: React + TypeScript + Vite, Tailwind CSS + shadcn/ui, TanStack React Query, wouter routing
@@ -77,6 +78,9 @@ shared/
 - `state_province` field (not `state`), `residential_address` (not `address`)
 - Phone stored as `{dialCode} {localNumber}` (e.g., "+92 3203682461")
 - `CustomerFormFields` component reused across pages
+- `interested_services` TEXT[] — services the customer expressed interest in (from onboarding form)
+- `source` TEXT — how the customer was created ("admin" default, "onboarding" for self-registration)
+- Customers page splits into "Leads" (no orders/invoices, red badge) and "Active Customers" sections
 
 ## Profit/Loss System
 

@@ -624,6 +624,11 @@ export async function runMigrations() {
       ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS pkr_tax_rate NUMERIC DEFAULT 0;
     `);
 
+    await client.query(`
+      ALTER TABLE customers ADD COLUMN IF NOT EXISTS interested_services TEXT[] DEFAULT '{}';
+      ALTER TABLE customers ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'admin';
+    `);
+
     console.log("All tables created successfully, RLS enabled");
 
     const { rows } = await client.query("SELECT COUNT(*) as count FROM company_settings");

@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { type Server } from "http";
 import { storage, calculateAnnualReportDue, calculateFederalTaxDue } from "./storage";
 import { insertCustomerSchema, insertServiceSchema, insertInvoiceSchema, insertSmtpSchema, insertReferralPartnerSchema, insertPortalLinkSchema } from "@shared/schema";
+import { z } from "zod";
 import type { ComplianceRecord } from "@shared/schema";
 import { initializeDatabase, supabase } from "./supabase";
 import multer from "multer";
@@ -13,13 +14,30 @@ import {
 } from "./dropbox";
 import path from "path";
 import mime from "mime-types";
-import { requireAdmin } from "./auth";
+import { requireAdmin, authRateLimit } from "./auth";
 import authRoutes from "./auth-routes";
+import rateLimit from "express-rate-limit";
+
+const onboardingRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { message: "Too many submissions. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const upload = multer({ storage: multer.memoryStorage() });
 const proofUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+    if (allowed.includes(file.mimetype)) { cb(null, true); } else { cb(new Error("Only images and PDFs are allowed")); }
+  },
+});
+const onboardingUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 10 },
   fileFilter: (_req, file, cb) => {
     const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
     if (allowed.includes(file.mimetype)) { cb(null, true); } else { cb(new Error("Only images and PDFs are allowed")); }
@@ -1761,6 +1779,98 @@ export async function registerRoutes(
       const logs = await storage.getLinkActivityLog(Number(req.params.id));
       res.json(logs);
     } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
+  // Onboarding - Public routes (no auth)
+  app.get("/api/onboarding/services", async (_req, res) => {
+    try {
+      const services = await storage.getServices();
+      const active = services.filter((s: any) => s.is_active !== false);
+      const simplified = active.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        category: s.category,
+        type: s.type,
+        state: s.state,
+      }));
+      res.json(simplified);
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
+  app.get("/api/onboarding/settings", async (_req, res) => {
+    try {
+      const settings = await storage.getCompanySettings();
+      if (settings) {
+        res.json({
+          company_name: settings.company_name,
+          logo_url: settings.logo_url || "",
+        });
+      } else {
+        res.json({ company_name: "Infinity Filer", logo_url: "" });
+      }
+    } catch (e) { res.status(500).json({ message: (e as Error).message }); }
+  });
+
+  app.post("/api/onboarding", onboardingRateLimit, onboardingUpload.array("files", 10), async (req, res) => {
+    try {
+      const body = typeof req.body.data === "string" ? JSON.parse(req.body.data) : req.body;
+
+      const onboardingSchema = insertCustomerSchema.pick({
+        company_name: true,
+        individual_name: true,
+        email: true,
+        phone: true,
+        country: true,
+        state_province: true,
+        residential_address: true,
+        referred_by: true,
+        interested_services: true,
+        notes: true,
+      }).extend({
+        source: z.literal("onboarding").default("onboarding"),
+      });
+
+      const parsed = onboardingSchema.safeParse(body);
+      if (!parsed.success) {
+        const firstError = parsed.error.errors[0];
+        return res.status(400).json({ message: firstError?.message || "Invalid form data" });
+      }
+      const customerData = parsed.data;
+
+      const customer = await storage.createCustomer(customerData);
+
+      const files = req.files as Express.Multer.File[] | undefined;
+      if (files && files.length > 0) {
+        const connected = await isDropboxConnected();
+        if (connected) {
+          const docNames = body.doc_names || [];
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const documentName = docNames[i] || file.originalname.replace(/\.[^/.]+$/, "");
+            const ext = path.extname(file.originalname);
+            const sanitizedName = documentName.replace(/[^a-zA-Z0-9_\-\s.]/g, "").trim();
+            const dropboxFileName = sanitizedName.endsWith(ext) ? sanitizedName : `${sanitizedName}${ext}`;
+            const folderName = `${customer.company_name || customer.individual_name || "Unknown"}`.replace(/[^a-zA-Z0-9_\-\s]/g, "");
+            const dropboxPath = `/InfinityFiler/Customers/${folderName}/Verification/${dropboxFileName}`;
+
+            try {
+              const result = await uploadToDropbox(file.buffer, dropboxPath);
+              await storage.createCustomerDocument({
+                customer_id: customer.id,
+                file_name: file.originalname,
+                document_name: sanitizedName,
+                file_path: result.path,
+                dropbox_path: result.path,
+              });
+            } catch (uploadErr) {
+              console.error("Onboarding doc upload error:", (uploadErr as Error).message);
+            }
+          }
+        }
+      }
+
+      res.json({ success: true, customer_id: customer.id });
+    } catch (e) { res.status(400).json({ message: (e as Error).message }); }
   });
 
   // Portal - Public routes (no auth)

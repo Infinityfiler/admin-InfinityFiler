@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/auth";
-import { Plus, Search, Trash2, ShieldCheck, FileText, X } from "lucide-react";
+import { Plus, Search, Trash2, ShieldCheck, FileText, X, UserCheck, UserPlus } from "lucide-react";
 import type { Customer } from "@shared/schema";
 import CustomerFormFields from "@/components/customer-form-fields";
 
@@ -32,6 +32,15 @@ export default function Customers() {
   const docFileRef = useRef<HTMLInputElement>(null);
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({ queryKey: ["/api/customers"] });
+  const { data: orders = [] } = useQuery<any[]>({ queryKey: ["/api/orders"] });
+  const { data: invoices = [] } = useQuery<any[]>({ queryKey: ["/api/invoices"] });
+
+  const customerIdsWithActivity = useMemo(() => {
+    const ids = new Set<number>();
+    orders.forEach((o: any) => { if (o.customer_id) ids.add(o.customer_id); });
+    invoices.forEach((i: any) => { if (i.customer_id) ids.add(i.customer_id); });
+    return ids;
+  }, [orders, invoices]);
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof form) => {
@@ -89,6 +98,50 @@ export default function Customers() {
     c.email.toLowerCase().includes(search.toLowerCase()) ||
     c.phone.includes(search) ||
     c.referred_by.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const activeCustomers = filtered.filter(c => customerIdsWithActivity.has(c.id));
+  const leads = filtered.filter(c => !customerIdsWithActivity.has(c.id));
+
+  const renderCustomerCard = (customer: Customer, isLead: boolean) => (
+    <Card
+      key={customer.id}
+      className="hover-elevate cursor-pointer"
+      onClick={() => navigate(`/customers/${customer.id}`)}
+      data-testid={`card-customer-${customer.id}`}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-sm" data-testid={`text-customer-company-${customer.id}`}>{customer.company_name || customer.individual_name}</h3>
+              {customer.referred_by && <Badge variant="secondary" className="text-xs">Ref: {customer.referred_by}</Badge>}
+              {isLead && <Badge variant="destructive" className="text-xs">Lead</Badge>}
+              {isLead && customer.source === "onboarding" && <Badge className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">Onboarding</Badge>}
+            </div>
+            {customer.company_name && <p className="text-sm text-muted-foreground">{customer.individual_name}</p>}
+            <p className="text-xs text-muted-foreground">{customer.email} | {customer.phone}</p>
+            {isLead && customer.interested_services && customer.interested_services.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {customer.interested_services.map((s, i) => (
+                  <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{s}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => { e.stopPropagation(); if (confirm("Delete this customer?")) deleteMutation.mutate(customer.id); }}
+              data-testid={`button-delete-customer-${customer.id}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 
   return (
@@ -172,38 +225,36 @@ export default function Customers() {
       ) : filtered.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No customers found</CardContent></Card>
       ) : (
-        <div className="grid gap-3">
-          {filtered.map((customer) => (
-            <Card
-              key={customer.id}
-              className="hover-elevate cursor-pointer"
-              onClick={() => navigate(`/customers/${customer.id}`)}
-              data-testid={`card-customer-${customer.id}`}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-sm" data-testid={`text-customer-company-${customer.id}`}>{customer.company_name}</h3>
-                      {customer.referred_by && <Badge variant="secondary" className="text-xs">Ref: {customer.referred_by}</Badge>}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{customer.individual_name}</p>
-                    <p className="text-xs text-muted-foreground">{customer.email} | {customer.phone}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={(e) => { e.stopPropagation(); if (confirm("Delete this customer?")) deleteMutation.mutate(customer.id); }}
-                      data-testid={`button-delete-customer-${customer.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="space-y-6">
+          {leads.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-destructive" />
+                <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide" data-testid="text-leads-section">
+                  Leads
+                </h2>
+                <Badge variant="destructive" className="text-xs">{leads.length}</Badge>
+              </div>
+              <div className="grid gap-3">
+                {leads.map(c => renderCustomerCard(c, true))}
+              </div>
+            </div>
+          )}
+
+          {activeCustomers.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-green-600" />
+                <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide" data-testid="text-active-customers-section">
+                  Active Customers
+                </h2>
+                <Badge className="text-xs bg-green-100 text-green-700 hover:bg-green-100">{activeCustomers.length}</Badge>
+              </div>
+              <div className="grid gap-3">
+                {activeCustomers.map(c => renderCustomerCard(c, false))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

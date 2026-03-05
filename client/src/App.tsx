@@ -30,6 +30,7 @@ import Partners from "@/pages/partners";
 import Referrals from "@/pages/referrals";
 import AdminUsers from "@/pages/admin-users";
 import GeneralSettings from "@/pages/settings";
+import Onboarding from "@/pages/onboarding";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -85,13 +86,14 @@ const sidebarStyle = {
 };
 
 const isPortalRoute = window.location.pathname.startsWith("/portal/");
+const isOnboardingRoute = window.location.pathname.startsWith("/onboarding");
 
 function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    if (isPortalRoute) {
+    if (isPortalRoute || isOnboardingRoute) {
       setAuthChecked(true);
       return;
     }
@@ -102,13 +104,14 @@ function App() {
     });
   }, []);
 
-  if (isPortalRoute) {
+  if (isPortalRoute || isOnboardingRoute) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Router>
             <Switch>
               <Route path="/portal/:token" component={CustomerPortal} />
+              <Route path="/onboarding" component={Onboarding} />
             </Switch>
           </Router>
         </TooltipProvider>
