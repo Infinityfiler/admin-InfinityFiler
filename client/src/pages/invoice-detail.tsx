@@ -626,8 +626,8 @@ export default function InvoiceDetail() {
     <div class="meta-grid">
       <div class="meta-col">
         <div class="meta-label">Bill To</div>
-        <div class="meta-value">${esc(invoice.company_name)}</div>
-        <div class="meta-sub">${esc(invoice.customer_name)}</div>
+        <div class="meta-value">${esc(invoice.company_name || invoice.customer_name)}</div>
+        ${invoice.company_name ? `<div class="meta-sub">${esc(invoice.customer_name)}</div>` : ""}
         <div class="meta-sub">${esc(invoice.customer_email)}</div>
         <div class="meta-sub">${esc(invoice.customer_phone)}</div>
       </div>
@@ -916,8 +916,8 @@ export default function InvoiceDetail() {
           <div className={`grid gap-6 pt-2 ${referralPartner || referralName ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2"}`}>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">Bill To</p>
-              <p className="font-semibold text-foreground">{invoice.company_name}</p>
-              <p className="text-sm text-foreground">{invoice.customer_name}</p>
+              <p className="font-semibold text-foreground">{invoice.company_name || invoice.customer_name}</p>
+              {invoice.company_name && <p className="text-sm text-foreground">{invoice.customer_name}</p>}
               <p className="text-sm text-muted-foreground">{invoice.customer_email}</p>
               <p className="text-sm text-muted-foreground">{invoice.customer_phone}</p>
             </div>

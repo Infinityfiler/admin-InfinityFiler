@@ -1439,8 +1439,8 @@ function InvoiceDetailView({
     <div class="meta-grid">
       <div class="meta-col">
         <div class="meta-label">Bill To</div>
-        <div class="meta-value">${esc(invoice.company_name)}</div>
-        <div class="meta-sub">${esc(invoice.customer_name)}</div>
+        <div class="meta-value">${esc(invoice.company_name || invoice.customer_name)}</div>
+        ${invoice.company_name ? `<div class="meta-sub">${esc(invoice.customer_name)}</div>` : ""}
         <div class="meta-sub">${esc(invoice.customer_email)}</div>
         <div class="meta-sub">${esc(invoice.customer_phone)}</div>
       </div>
