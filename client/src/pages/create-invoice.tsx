@@ -25,10 +25,8 @@ interface DocFile {
   docName: string;
 }
 
-const STATE_SPECIFIC_CATEGORIES = ["LLC Formation", "C-Corp Formation"];
-
 function getServicePrice(s: Service) {
-  if (STATE_SPECIFIC_CATEGORIES.includes(s.category)) {
+  if (s.type === "state_specific") {
     return Number(s.state_fee) + Number(s.agent_fee) + Number(s.unique_address) + Number(s.vyke_number) + Number(s.service_charges);
   }
   return Number(s.service_charges);
