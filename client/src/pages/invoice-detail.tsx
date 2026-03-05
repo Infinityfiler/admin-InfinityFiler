@@ -55,6 +55,7 @@ export default function InvoiceDetail() {
 
   const referralName = referralPartner?.full_name || customer?.referred_by || "";
 
+  const STATE_SPECIFIC_CATEGORIES = ["LLC Formation", "C-Corp Formation"];
   const getOriginalPrice = (item: InvoiceItem): { originalPrice: number; discountLabel: string } | null => {
     if (partnerRates.length > 0 && item.service_id) {
       const rate = partnerRates.find(r => r.service_id === item.service_id);
@@ -62,7 +63,7 @@ export default function InvoiceDetail() {
         const service = allServices.find(s => s.id === item.service_id);
         if (service) {
           let catalogPrice: number;
-          if (service.type === "state_specific") {
+          if (STATE_SPECIFIC_CATEGORIES.includes(service.category)) {
             catalogPrice = Number(service.state_fee) + Number(service.agent_fee) + Number(service.unique_address) + Number(service.vyke_number) + Number(service.service_charges);
           } else {
             catalogPrice = Number(service.service_charges);
