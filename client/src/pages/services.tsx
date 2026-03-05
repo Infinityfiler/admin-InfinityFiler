@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,8 @@ import { Plus, Trash2, Search, Upload, Download, Package, Pencil, X, CheckSquare
 import { US_STATES } from "@shared/schema";
 import type { Service, BundlePackage } from "@shared/schema";
 
-const CATEGORIES = ["LLC Formation", "C-Corp Formation", "ITIN", "Taxation", "Trademark", "US Banking", "UK Ltd", "UK Trademark"];
-const STATE_SPECIFIC_CATEGORIES = ["LLC Formation", "C-Corp Formation"];
+const DEFAULT_CATEGORIES = ["LLC Formation", "C-Corp Formation", "ITIN", "Taxation", "Trademark", "US Banking", "UK Ltd", "UK Trademark"];
+const LEGACY_STATE_SPECIFIC = ["LLC Formation", "C-Corp Formation"];
 
 type ServiceForm = {
   name: string; category: string; type: string; state: string;
@@ -38,7 +38,7 @@ const emptyForm: ServiceForm = {
 };
 
 function ServiceFormFields({
-  form, setForm, newInclude, setNewInclude, isEdit, onSave, isPending,
+  form, setForm, newInclude, setNewInclude, isEdit, onSave, isPending, allCategories,
 }: {
   form: ServiceForm;
   setForm: (f: ServiceForm) => void;
@@ -47,8 +47,19 @@ function ServiceFormFields({
   isEdit?: boolean;
   onSave: () => void;
   isPending: boolean;
+  allCategories: string[];
 }) {
-  const isStateSpecific = STATE_SPECIFIC_CATEGORIES.includes(form.category);
+  const [catInput, setCatInput] = useState(form.category);
+  const [catOpen, setCatOpen] = useState(false);
+  useEffect(() => {
+    setCatInput(form.category);
+  }, [form.category]);
+  const isStateSpecific = form.type === "state_specific";
+
+  const categoryOptions = [...new Set([...DEFAULT_CATEGORIES, ...(allCategories || [])])].sort();
+  const filteredCats = catInput
+    ? categoryOptions.filter(c => c.toLowerCase().includes(catInput.toLowerCase()))
+    : categoryOptions;
 
   return (
     <div className="space-y-3">
@@ -56,12 +67,53 @@ function ServiceFormFields({
         <Label>Name</Label>
         <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="input-service-name" />
       </div>
-      <div>
+      <div className="relative">
         <Label>Category</Label>
-        <Select value={form.category} onValueChange={(val) => setForm({ ...form, category: val })}>
-          <SelectTrigger data-testid="select-service-category"><SelectValue /></SelectTrigger>
+        <Input
+          value={catInput}
+          onChange={(e) => {
+            setCatInput(e.target.value);
+            setForm({ ...form, category: e.target.value });
+            setCatOpen(true);
+          }}
+          onFocus={() => setCatOpen(true)}
+          onBlur={() => setTimeout(() => setCatOpen(false), 200)}
+          placeholder="Type to search or add new category..."
+          data-testid="input-service-category"
+        />
+        {catOpen && filteredCats.length > 0 && (
+          <div className="absolute z-50 mt-1 w-full max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md">
+            {filteredCats.map(c => (
+              <button
+                key={c}
+                type="button"
+                className={`w-full text-left px-3 py-1.5 text-sm rounded-sm hover:bg-accent cursor-pointer ${c === form.category ? "bg-accent font-medium" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setCatInput(c);
+                  setForm({ ...form, category: c });
+                  setCatOpen(false);
+                }}
+                data-testid={`category-option-${c}`}
+              >
+                {c}
+              </button>
+            ))}
+            {catInput && !categoryOptions.some(c => c.toLowerCase() === catInput.toLowerCase()) && (
+              <div className="px-3 py-1.5 text-xs text-muted-foreground border-t mt-1 pt-1">
+                Press Tab or click away to use "{catInput}" as a new category
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div>
+        <Label>Service Type</Label>
+        <Select value={form.type} onValueChange={(val) => setForm({ ...form, type: val })}>
+          <SelectTrigger data-testid="select-service-type"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            <SelectItem value="state_specific">State Specific</SelectItem>
+            <SelectItem value="general">General</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -238,7 +290,7 @@ export default function Services() {
   });
 
   const getServicePrice = (s: Service) => {
-    if (STATE_SPECIFIC_CATEGORIES.includes(s.category)) {
+    if (s.type === "state_specific") {
       return Number(s.state_fee) + Number(s.agent_fee) + Number(s.unique_address) + Number(s.vyke_number) + Number(s.service_charges);
     }
     return Number(s.service_charges);
@@ -384,7 +436,7 @@ export default function Services() {
         return {
           name: row["Service Name"] || "LLC Formation",
           category: row["Category"] || "LLC Formation",
-          type: "state_specific",
+          type: row["Type"] || (LEGACY_STATE_SPECIFIC.includes(row["Category"] || "LLC Formation") ? "state_specific" : "general"),
           state: row["State"] || "",
           state_fee: Number(row["State Fee"]) || 0,
           agent_fee: Number(row["Agent Fee"]) || 0,
@@ -419,7 +471,7 @@ export default function Services() {
   const downloadTemplate = async () => {
     const XLSX = await import("xlsx");
     const templateData = [
-      { "Service Name": "LLC Formation", "Category": "LLC Formation", "State": "Wyoming", "State Fee": 104, "Agent Fee": 25, "Unique Address": 49, "Vyke Number": 20, "Service Charges": 50, "Annual Report Fee": 60, "Annual Report Deadline": "Anniversary month", "State Tax Rate": "0%", "Federal Tax": "Pass-through", "Additional Requirements": "", "Annual Franchise Tax": 0, "What's Included": "EIN Number | Operating Agreement | Registered Agent (1 Year) | Company Formation | Unique Address | Vyke Phone Number" }
+      { "Service Name": "LLC Formation", "Category": "LLC Formation", "Type": "state_specific", "State": "Wyoming", "State Fee": 104, "Agent Fee": 25, "Unique Address": 49, "Vyke Number": 20, "Service Charges": 50, "Annual Report Fee": 60, "Annual Report Deadline": "Anniversary month", "State Tax Rate": "0%", "Federal Tax": "Pass-through", "Additional Requirements": "", "Annual Franchise Tax": 0, "What's Included": "EIN Number | Operating Agreement | Registered Agent (1 Year) | Company Formation | Unique Address | Vyke Phone Number" }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
@@ -432,6 +484,7 @@ export default function Services() {
     const exportData = services.map(s => ({
       "Service Name": s.name,
       "Category": s.category,
+      "Type": s.type || "state_specific",
       "State": s.state,
       "State Fee": Number(s.state_fee),
       "Agent Fee": Number(s.agent_fee),
@@ -784,6 +837,7 @@ export default function Services() {
                 setNewInclude={setNewInclude}
                 onSave={() => createMutation.mutate()}
                 isPending={createMutation.isPending}
+                allCategories={categories}
               />
             </DialogContent>
           </Dialog>
@@ -801,6 +855,7 @@ export default function Services() {
             isEdit
             onSave={() => updateMutation.mutate()}
             isPending={updateMutation.isPending}
+            allCategories={categories}
           />
         </DialogContent>
       </Dialog>
@@ -868,7 +923,7 @@ export default function Services() {
                 </span>
               </div>
               {filtered.map((service) => {
-                const isStateSpecific = STATE_SPECIFIC_CATEGORIES.includes(service.category);
+                const isStateSpecific = service.type === "state_specific";
                 const totalPkg = isStateSpecific
                   ? Number(service.state_fee) + Number(service.agent_fee) + Number(service.unique_address) + Number(service.vyke_number) + Number(service.service_charges)
                   : Number(service.service_charges);
@@ -882,6 +937,7 @@ export default function Services() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold text-sm">{service.name}</h3>
                             <Badge variant="secondary">{service.category}</Badge>
+                            <Badge variant="outline" className="text-[10px]">{isStateSpecific ? "State Specific" : "General"}</Badge>
                             {service.state && <Badge variant="secondary">{service.state}</Badge>}
                             {service.high_alert && <Badge variant="destructive">High Alert</Badge>}
                             {service.recommended && <Badge>Recommended</Badge>}

@@ -18,10 +18,8 @@ import { Plus, Trash2, ArrowLeft, Package, Search, UserPlus, Save } from "lucide
 import type { Customer, Service, BundlePackage, BundleItem, Invoice, InvoiceItem, CompanySettings, PartnerServiceRate } from "@shared/schema";
 import CustomerFormFields from "@/components/customer-form-fields";
 
-const STATE_SPECIFIC_CATEGORIES = ["LLC Formation", "C-Corp Formation"];
-
 function getServicePrice(s: Service) {
-  if (STATE_SPECIFIC_CATEGORIES.includes(s.category)) {
+  if (s.type === "state_specific") {
     return Number(s.state_fee) + Number(s.agent_fee) + Number(s.unique_address) + Number(s.vyke_number) + Number(s.service_charges);
   }
   return Number(s.service_charges);

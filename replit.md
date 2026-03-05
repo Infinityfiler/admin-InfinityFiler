@@ -113,6 +113,7 @@ Required secrets (set in Replit Secrets):
 
 - Dashboard with stats, auto-overdue marking, compliance sync
 - Customer management with referral tracking
+- Services management with dynamic categories (type-ahead input with suggestions, supports custom categories) and explicit service type toggle (State Specific / General)
 - Orders with services, documents, activity logs, compliance
 - Invoice creation with partner discount auto-application; discounts persisted in `invoice_items` (`original_price`, `partner_discount_label` columns)
 - Invoice editing with partner discount support: fetches partner rates, applies discounts on service selection, "Recalculate Discounts" button, discount info saved to DB
