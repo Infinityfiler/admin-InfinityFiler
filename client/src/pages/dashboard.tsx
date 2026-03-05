@@ -163,6 +163,37 @@ function CustomersMiniChart({ data }: { data: any[] }) {
   );
 }
 
+function OrdersMiniChart({ data }: { data: any[] }) {
+  if (!data.length) return <p className="text-[10px] text-muted-foreground text-center py-4">No data</p>;
+  return (
+    <ResponsiveContainer width="100%" height={120}>
+      <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <defs>
+          <linearGradient id="pendingOG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="inProgressOG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="completedOG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.5} />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 9 }} />
+        <Tooltip content={<CustomTooltip />} />
+        <Area type="monotone" dataKey="pendingOrders" name="Pending" stroke="#f59e0b" fill="url(#pendingOG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+        <Area type="monotone" dataKey="inProgressOrders" name="In Progress" stroke="#3b82f6" fill="url(#inProgressOG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+        <Area type="monotone" dataKey="completedOrders" name="Completed" stroke="#10b981" fill="url(#completedOG)" strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
 function RevenueMiniChart({ data }: { data: any[] }) {
   if (!data.length) return <p className="text-[10px] text-muted-foreground text-center py-4">No data</p>;
   return (
@@ -494,24 +525,28 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="charts-row">
           <Card data-testid="chart-orders">
             <CardContent className="p-3 pb-1">
-              <div className="flex items-center gap-1.5 mb-1">
-                <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <ShoppingCart className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                 <span className="text-xs font-medium text-muted-foreground">Orders</span>
-                <span className="ml-auto text-sm font-bold text-foreground">{timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1].cumulativeOrders : 0}</span>
               </div>
-              <MiniChart data={timeSeriesData} dataKey="orders" stroke="#3b82f6" gradientId="ordersG" gradientColor="#3b82f6" />
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /><span className="text-muted-foreground">Pending</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativePending ?? 0) : 0}</span></span>
+                <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" /><span className="text-muted-foreground">In Progress</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeInProgress ?? 0) : 0}</span></span>
+                <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-muted-foreground">Completed</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeCompleted ?? 0) : 0}</span></span>
+              </div>
+              <OrdersMiniChart data={timeSeriesData} />
             </CardContent>
           </Card>
           <Card data-testid="chart-revenue">
             <CardContent className="p-3 pb-1">
-              <div className="flex items-center gap-1.5 mb-1">
-                <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <DollarSign className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                 <span className="text-xs font-medium text-muted-foreground">Revenue</span>
-                <div className="ml-auto flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" /><span className="text-muted-foreground">Invoiced</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeRevenue ?? 0).toLocaleString() : 0}</span></span>
-                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-muted-foreground">Paid</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeCollected ?? 0).toLocaleString() : 0}</span></span>
-                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" /><span className="text-muted-foreground">Unpaid</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeUnpaid ?? 0).toLocaleString() : 0}</span></span>
-                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" /><span className="text-muted-foreground">Invoiced</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeRevenue ?? 0).toLocaleString() : 0}</span></span>
+                <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-muted-foreground">Paid</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeCollected ?? 0).toLocaleString() : 0}</span></span>
+                <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" /><span className="text-muted-foreground">Unpaid</span> <span className="font-bold text-foreground">${timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeUnpaid ?? 0).toLocaleString() : 0}</span></span>
               </div>
               <RevenueMiniChart data={timeSeriesData} />
             </CardContent>
@@ -528,13 +563,13 @@ export default function Dashboard() {
           </Card>
           <Card data-testid="chart-leads">
             <CardContent className="p-3 pb-1">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Users className="h-3.5 w-3.5 text-amber-500" />
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Users className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                 <span className="text-xs font-medium text-muted-foreground">Customers</span>
-                <div className="ml-auto flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-muted-foreground">Active</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeActive ?? 0) : 0}</span></span>
-                  <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" /><span className="text-muted-foreground">Leads</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeLeads ?? 0) : 0}</span></span>
-                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /><span className="text-muted-foreground">Active</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeActive ?? 0) : 0}</span></span>
+                <span className="flex items-center gap-1 text-[10px]"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /><span className="text-muted-foreground">Leads</span> <span className="font-bold text-foreground">{timeSeriesData.length > 0 ? (timeSeriesData[timeSeriesData.length - 1].cumulativeLeads ?? 0) : 0}</span></span>
               </div>
               <CustomersMiniChart data={timeSeriesData} />
             </CardContent>

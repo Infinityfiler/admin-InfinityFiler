@@ -1370,9 +1370,15 @@ export class SupabaseStorage implements IStorage {
     const allInvoices = invoices.data || [];
 
     const ordersByDate: Record<string, number> = {};
+    const pendingByDate: Record<string, number> = {};
+    const inProgressByDate: Record<string, number> = {};
+    const completedByDate: Record<string, number> = {};
     for (const o of allOrders) {
       const d = new Date(o.created_at).toISOString().split("T")[0];
       ordersByDate[d] = (ordersByDate[d] || 0) + 1;
+      if (o.status === "pending") pendingByDate[d] = (pendingByDate[d] || 0) + 1;
+      else if (o.status === "in-progress") inProgressByDate[d] = (inProgressByDate[d] || 0) + 1;
+      else if (o.status === "completed") completedByDate[d] = (completedByDate[d] || 0) + 1;
     }
 
     const customerIdsWithOrders = new Set(allOrders.map((o: any) => o.customer_id));
@@ -1417,6 +1423,9 @@ export class SupabaseStorage implements IStorage {
     const sortedDates = Array.from(allDates).sort();
 
     let cumulativeOrders = 0;
+    let cumulativePending = 0;
+    let cumulativeInProgress = 0;
+    let cumulativeCompleted = 0;
     let cumulativeLeads = 0;
     let cumulativeActive = 0;
     let cumulativeProfit = 0;
@@ -1425,12 +1434,18 @@ export class SupabaseStorage implements IStorage {
 
     const chartData = sortedDates.map(date => {
       const dayOrders = ordersByDate[date] || 0;
+      const dayPending = pendingByDate[date] || 0;
+      const dayInProgress = inProgressByDate[date] || 0;
+      const dayCompleted = completedByDate[date] || 0;
       const dayLeads = leadsByDate[date] || 0;
       const dayActive = activeByDate[date] || 0;
       const dayProfit = profitsByDate[date]?.profit || 0;
       const dayRevenue = revenueByDate[date]?.invoiced || 0;
       const dayCollected = revenueByDate[date]?.collected || 0;
       cumulativeOrders += dayOrders;
+      cumulativePending += dayPending;
+      cumulativeInProgress += dayInProgress;
+      cumulativeCompleted += dayCompleted;
       cumulativeLeads += dayLeads;
       cumulativeActive += dayActive;
       cumulativeProfit += dayProfit;
@@ -1441,6 +1456,12 @@ export class SupabaseStorage implements IStorage {
         date,
         orders: dayOrders,
         cumulativeOrders,
+        pendingOrders: dayPending,
+        cumulativePending,
+        inProgressOrders: dayInProgress,
+        cumulativeInProgress,
+        completedOrders: dayCompleted,
+        cumulativeCompleted,
         leads: dayLeads,
         cumulativeLeads,
         activeCustomers: dayActive,
